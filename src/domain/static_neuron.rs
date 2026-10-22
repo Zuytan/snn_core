@@ -173,9 +173,7 @@ impl<const N: usize> crate::traits::SpikingPopulation for StaticNeuronPopulation
     #[inline]
     #[allow(clippy::needless_range_loop)]
     fn tick_bitset(&mut self, bitset_words: &mut [u32]) {
-        for w in bitset_words.iter_mut() {
-            *w = 0;
-        }
+        bitset_words.fill(0);
         for i in 0..N {
             let refractory_time_left = &mut self.refractory_times_left[i];
             let input_accumulator = &mut self.input_accumulators[i];

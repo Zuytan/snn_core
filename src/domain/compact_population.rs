@@ -133,15 +133,9 @@ impl<const N: usize> SpikingPopulation<Fix32> for CompactLifPopulation<N> {
     }
 
     fn reset(&mut self) {
-        for v in &mut self.membrane_potentials {
-            *v = self.config.reset_potential;
-        }
-        for refr in &mut self.refractory_times_left {
-            *refr = 0;
-        }
-        for acc in &mut self.input_accumulators {
-            *acc = Fix32::ZERO;
-        }
+        self.membrane_potentials.fill(self.config.reset_potential);
+        self.refractory_times_left.fill(0);
+        self.input_accumulators.fill(Fix32::ZERO);
     }
 
     #[inline]
@@ -167,9 +161,7 @@ impl<const N: usize> SpikingPopulation<Fix32> for CompactLifPopulation<N> {
 
     #[inline]
     fn tick_bitset(&mut self, bitset_words: &mut [u32]) {
-        for w in bitset_words.iter_mut() {
-            *w = 0;
-        }
+        bitset_words.fill(0);
         for i in 0..N {
             let spike = self.step_neuron(i);
             if spike {
@@ -316,15 +308,9 @@ impl<const N: usize> SpikingPopulation<Fix16> for CompactLif16Population<N> {
     }
 
     fn reset(&mut self) {
-        for v in &mut self.membrane_potentials {
-            *v = self.config.reset_potential;
-        }
-        for refr in &mut self.refractory_times_left {
-            *refr = 0;
-        }
-        for acc in &mut self.input_accumulators {
-            *acc = Fix16::ZERO;
-        }
+        self.membrane_potentials.fill(self.config.reset_potential);
+        self.refractory_times_left.fill(0);
+        self.input_accumulators.fill(Fix16::ZERO);
     }
 
     #[inline]
@@ -350,9 +336,7 @@ impl<const N: usize> SpikingPopulation<Fix16> for CompactLif16Population<N> {
 
     #[inline]
     fn tick_bitset(&mut self, bitset_words: &mut [u32]) {
-        for w in bitset_words.iter_mut() {
-            *w = 0;
-        }
+        bitset_words.fill(0);
         for i in 0..N {
             let spike = self.step_neuron(i);
             if spike {

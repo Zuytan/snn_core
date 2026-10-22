@@ -96,9 +96,7 @@ fn bench_liquid_state(c: &mut Criterion) {
 
         let mut network = Network::new(neurons, &internal_synapses, &[]);
         let mut inputs = vec![Fix32::ZERO; size];
-        for val in inputs.iter_mut().take(size / 10) {
-            *val = Fix32::from_num(2.0);
-        }
+        inputs[..size / 10].fill(Fix32::from_num(2.0));
 
         b.iter(|| {
             black_box(network.tick(black_box(&inputs)));

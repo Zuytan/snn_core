@@ -73,12 +73,8 @@ impl<M: NeuronDynamics<T>, const N: usize, T: NumericScalar> SpikingPopulation<T
     }
 
     fn reset(&mut self) {
-        for s in &mut self.states {
-            *s = M::State::default();
-        }
-        for acc in &mut self.input_accumulators {
-            *acc = T::ZERO;
-        }
+        self.states.fill(M::State::default());
+        self.input_accumulators.fill(T::ZERO);
     }
 
     #[inline]
@@ -109,9 +105,7 @@ impl<M: NeuronDynamics<T>, const N: usize, T: NumericScalar> SpikingPopulation<T
 
     #[inline]
     fn tick_bitset(&mut self, bitset_words: &mut [u32]) {
-        for w in bitset_words.iter_mut() {
-            *w = 0;
-        }
+        bitset_words.fill(0);
         for i in 0..N {
             let bias = self.bias.map_or(T::ZERO, |b| b[i]);
             let input = self.input_accumulators[i] + bias;
@@ -206,12 +200,8 @@ impl<M: NeuronDynamics<T>, const N: usize, T: NumericScalar> SpikingPopulation<T
     }
 
     fn reset(&mut self) {
-        for s in &mut self.states {
-            *s = M::State::default();
-        }
-        for acc in &mut self.input_accumulators {
-            *acc = T::ZERO;
-        }
+        self.states.fill(M::State::default());
+        self.input_accumulators.fill(T::ZERO);
     }
 
     #[inline]
@@ -242,9 +232,7 @@ impl<M: NeuronDynamics<T>, const N: usize, T: NumericScalar> SpikingPopulation<T
 
     #[inline]
     fn tick_bitset(&mut self, bitset_words: &mut [u32]) {
-        for w in bitset_words.iter_mut() {
-            *w = 0;
-        }
+        bitset_words.fill(0);
         for i in 0..N {
             let bias = self.bias.map_or(T::ZERO, |b| b[i]);
             let input = self.input_accumulators[i] + bias;

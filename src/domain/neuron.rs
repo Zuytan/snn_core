@@ -185,9 +185,7 @@ impl crate::traits::SpikingPopulation for NeuronPopulation {
     #[inline]
     #[allow(clippy::needless_range_loop)]
     fn tick_bitset(&mut self, bitset_words: &mut [u32]) {
-        for w in bitset_words.iter_mut() {
-            *w = 0;
-        }
+        bitset_words.fill(0);
         let len = self
             .membrane_potentials
             .len()

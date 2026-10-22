@@ -38,9 +38,7 @@ pub unsafe extern "C" fn snn_aer_decode_1d(
 
     let words_slice = unsafe { core::slice::from_raw_parts_mut(out_words, words_count) };
 
-    for w in words_slice.iter_mut() {
-        *w = 0;
-    }
+    words_slice.fill(0);
 
     if event_count == 0 {
         return 0;
@@ -82,9 +80,7 @@ pub unsafe extern "C" fn snn_aer_decode_2d_bipolar(
 
     let words_slice = unsafe { core::slice::from_raw_parts_mut(out_words, words_count) };
 
-    for w in words_slice.iter_mut() {
-        *w = 0;
-    }
+    words_slice.fill(0);
 
     if event_count == 0 {
         return 0;
@@ -296,9 +292,7 @@ pub unsafe extern "C" fn snn_network_step(
     let last_spikes_slice = unsafe { core::slice::from_raw_parts_mut(s.last_spikes, words) };
     let out_words_slice = unsafe { core::slice::from_raw_parts_mut(out_spikes_words, words_count) };
 
-    for w in out_words_slice.iter_mut().take(words) {
-        *w = 0;
-    }
+    out_words_slice[..words.min(words_count)].fill(0);
 
     // 1. Input synapse propagation (weighted)
     if !inputs.is_null()
@@ -456,14 +450,10 @@ pub unsafe extern "C" fn snn_network_reset(
     let refr_slice = unsafe { core::slice::from_raw_parts_mut(s.refractory_times, n) };
     let last_spikes_slice = unsafe { core::slice::from_raw_parts_mut(s.last_spikes, words) };
 
-    for i in 0..n {
-        mem_slice[i] = reset_v;
-        acc_slice[i] = 0;
-        refr_slice[i] = 0;
-    }
-    for w in last_spikes_slice.iter_mut() {
-        *w = 0;
-    }
+    mem_slice.fill(reset_v);
+    acc_slice.fill(0);
+    refr_slice.fill(0);
+    last_spikes_slice.fill(0);
     0
 }
 
@@ -729,19 +719,13 @@ pub unsafe extern "C" fn snn_deep_network_step(
         let is_even = (layer_idx % 2) == 0;
 
         // 1. Reset shared accumulators for this layer
-        for a in &mut acc_slice[..n] {
-            *a = 0;
-        }
+        acc_slice[..n].fill(0);
 
         // Reset output buffer
         if is_even {
-            for w in &mut pong_slice[..words] {
-                *w = 0;
-            }
+            pong_slice[..words].fill(0);
         } else {
-            for w in &mut ping_slice[..words] {
-                *w = 0;
-            }
+            ping_slice[..words].fill(0);
         }
 
         // 2. Synaptic propagation
@@ -901,9 +885,7 @@ pub unsafe extern "C" fn snn_deep_network_step(
 
     let out_slice = unsafe { core::slice::from_raw_parts_mut(out_spikes_words, words_count) };
     out_slice[..last_words].copy_from_slice(&final_words_slice[..last_words]);
-    for item in &mut out_slice[last_words..words_count] {
-        *item = 0;
-    }
+    out_slice[last_words..words_count].fill(0);
 
     0
 }
@@ -938,22 +920,14 @@ pub unsafe extern "C" fn snn_deep_network_reset(
     let mut offset = 0;
     for l in layers {
         let reset_v = l.config.reset_potential;
-        for i in 0..l.num_neurons {
-            mem_slice[offset + i] = reset_v;
-            refr_slice[offset + i] = 0;
-        }
+        mem_slice[offset..offset + l.num_neurons].fill(reset_v);
+        refr_slice[offset..offset + l.num_neurons].fill(0);
         offset += l.num_neurons;
     }
 
-    for a in &mut *acc_slice {
-        *a = 0;
-    }
-    for w in &mut *ping_slice {
-        *w = 0;
-    }
-    for w in &mut *pong_slice {
-        *w = 0;
-    }
+    acc_slice.fill(0);
+    ping_slice.fill(0);
+    pong_slice.fill(0);
 
     0
 }

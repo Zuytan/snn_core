@@ -277,9 +277,7 @@ impl<const N: usize, const MAX_LUT: usize> crate::traits::SpikingPopulation<Fix3
 
     fn tick_bitset(&mut self, bitset_words: &mut [u32]) {
         self.advance_tick();
-        for w in bitset_words.iter_mut() {
-            *w = 0;
-        }
+        bitset_words.fill(0);
 
         for i in 0..N {
             let inp = self.input_accumulators[i];
