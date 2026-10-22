@@ -1936,10 +1936,7 @@ mod tests {
 
         // Tick 1: no input
         let spikes_t1 = delayed_layer.tick_spikes(&[0]);
-        assert!(
-            !spikes_t1.get(0),
-            "At tick 1, spike has not arrived yet"
-        );
+        assert!(!spikes_t1.get(0), "At tick 1, spike has not arrived yet");
 
         // Tick 2: no input -> spike injected at tick 0 arrives (delay of 2)
         let spikes_t2 = delayed_layer.tick_spikes(&[0]);

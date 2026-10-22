@@ -636,17 +636,10 @@ mod bptn_fuzz {
 
             let potential = neuron.evaluate_potential(&[h0, h1]);
             // Property: potential <= 64 * channels (here 128)
-            assert!(
-                potential <= 128,
-                "BPTN membrane potential overflow!"
-            );
+            assert!(potential <= 128, "BPTN membrane potential overflow!");
 
             let fired = neuron.tick(&[h0, h1]);
-            assert_eq!(
-                fired,
-                potential >= th,
-                "Spike thresholding inconsistency!"
-            );
+            assert_eq!(fired, potential >= th, "Spike thresholding inconsistency!");
         }
     }
 

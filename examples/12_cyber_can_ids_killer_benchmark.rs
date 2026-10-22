@@ -997,9 +997,7 @@ fn main() {
             }
         }
     } else {
-        println!(
-            "⏳ Generating deterministic synthetic dataset (95% noisy normal, 5% attacks)..."
-        );
+        println!("⏳ Generating deterministic synthetic dataset (95% noisy normal, 5% attacks)...");
         let data = generate_can_dataset(TOTAL_FRAMES);
         (
             data,
@@ -1360,9 +1358,7 @@ fn main() {
         matrix_snn_auto.fpr() * 100.0,
         matrix_snn_auto.fp
     );
-    println!(
-        "• Slow drift detection (+8% Clock Drift) via 3-tick BPTN Morphological Erosion:"
-    );
+    println!("• Slow drift detection (+8% Clock Drift) via 3-tick BPTN Morphological Erosion:");
     println!(
         "  -> BPTN morphological filtering (LSR + AND without FPU) eliminates isolated arbitration jitter and achieves {:.1}% recall!",
         (matrix_snn_auto.tp_drift as f64 * 100.0)

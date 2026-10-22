@@ -43,9 +43,7 @@ fn main() {
         "=========================================================================================="
     );
     println!("⚖️  ADVERSARIAL MICRO-ARCHITECTURAL BENCHMARK (UNBIASED)");
-    println!(
-        "Comparison: Dense LIF vs Lazy LIF vs Streaming BPTN (Stride=1) vs Block BPTN"
-    );
+    println!("Comparison: Dense LIF vs Lazy LIF vs Streaming BPTN (Stride=1) vs Block BPTN");
     println!(
         "Architecture: {} neurons, {} input channels, window T={} ticks ({} repetitions)",
         N_NEURONS, N_INPUT_CHANNELS, WINDOW_SIZE, N_EVALUATIONS

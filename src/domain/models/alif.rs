@@ -73,7 +73,7 @@ impl Default for AlifConfig {
             base_threshold: Fix32::ONE,
             decay_factor_v: Fix32::from_bits(58982), // ~0.90
             decay_factor_adapt: Fix32::from_bits(63570), // ~0.97 (slow decay of adaptation)
-            adaptation_step: Fix32::from_bits(19661),    // ~0.30
+            adaptation_step: Fix32::from_bits(19661), // ~0.30
             reset_potential: Fix32::ZERO,
             refractory_period: 2,
             bias: Fix32::ZERO,

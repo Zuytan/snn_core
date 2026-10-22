@@ -275,8 +275,7 @@ mod tests {
         assert_eq!(frame.payload_u16_be(), 0x0521);
 
         let attack_line = "1478198376.389500,0000,8,ff,ff,ff,ff,ff,ff,ff,ff,T";
-        let frame_atk =
-            parse_hcrl_csv_line(attack_line).expect("Should parse attack HCRL line");
+        let frame_atk = parse_hcrl_csv_line(attack_line).expect("Should parse attack HCRL line");
         assert_eq!(frame_atk.can_id, 0x0000);
         assert_eq!(frame_atk.is_attack, Some(true));
         assert_eq!(frame_atk.payload[0], 0xff);

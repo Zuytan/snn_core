@@ -595,7 +595,10 @@ fn main() {
     );
     println!(
         "{:<12} | {:<24} | {:<24} | {:<24}",
-        "Delay (Δ)", "Naive H-BPTN (OR-Pool)", "H-BPTN Threshold (Thresh=2)", "H-BPTN Strict Thresh (3)"
+        "Delay (Δ)",
+        "Naive H-BPTN (OR-Pool)",
+        "H-BPTN Threshold (Thresh=2)",
+        "H-BPTN Strict Thresh (3)"
     );
     println!(
         "-------------+--------------------------+--------------------------+-------------------------"

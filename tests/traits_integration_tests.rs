@@ -287,7 +287,10 @@ fn test_generic_static_network_with_alif_and_rom_csr() {
 
     // Tick 2: Recurrent internal synapse triggers neuron 1
     let spikes = net.tick(&[Fix32::ZERO]);
-    assert!(!spikes[0], "Neuron 0 must be refractory / elevated threshold");
+    assert!(
+        !spikes[0],
+        "Neuron 0 must be refractory / elevated threshold"
+    );
     assert!(
         spikes[1],
         "Neuron 1 must have received recurrent synaptic pulse"

@@ -171,12 +171,8 @@ fn main() {
     println!(
         "=========================================================================================="
     );
-    println!(
-        "⚖️  ADVERSARIAL END-TO-END PIPELINE: RIGID BPTN vs DILATED BPTN vs FAIR LIF SNN"
-    );
-    println!(
-        "Elimination of artificial handicaps on LIF and stress-testing under Jitter & Noise"
-    );
+    println!("⚖️  ADVERSARIAL END-TO-END PIPELINE: RIGID BPTN vs DILATED BPTN vs FAIR LIF SNN");
+    println!("Elimination of artificial handicaps on LIF and stress-testing under Jitter & Noise");
     println!(
         "==========================================================================================\n"
     );
@@ -262,11 +258,7 @@ fn main() {
             2i32,
             0u64,
         ),
-        (
-            "3. Jitter ±2 ticks + Poisson Noise (2.0% FA)",
-            2i32,
-            20u64,
-        ),
+        ("3. Jitter ±2 ticks + Poisson Noise (2.0% FA)", 2i32, 20u64),
     ];
 
     println!(
@@ -449,9 +441,7 @@ fn main() {
         "   window from 1 bit to 5 bits per synapse, which mechanically increases false coincidences"
     );
     println!("   when background noise increases.");
-    println!(
-        "4. CONTINUOUS SIGNALS (Benchmark 4): For smooth analog tracking, LIF's Q16.16 state"
-    );
+    println!("4. CONTINUOUS SIGNALS (Benchmark 4): For smooth analog tracking, LIF's Q16.16 state");
     println!("   clearly outperforms BPTN's thresholded binary output.");
     println!(
         "==========================================================================================\n"
