@@ -1,9 +1,11 @@
 # 🧠 `snn_core`
 
+[![Status: Work in Progress](https://img.shields.io/badge/status-work%20in%20progress-yellow.svg)](#)
 [![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/License-PolyForm%20Noncommercial%201.0.0-blue.svg)](LICENSE.md)
-[![Crates.io](https://img.shields.io/badge/crates.io-v0.4.0-orange.svg)](https://crates.io/crates/snn_core)
-[![Documentation](https://docs.rs/snn_core/badge.svg)](https://docs.rs/snn_core)
-[![no_std](https://img.shields.io/badge/no__std-compatible-success.svg)](https://docs.rs/snn_core)
+![no_std](https://img.shields.io/badge/no__std-compatible-success.svg)
+
+> [!WARNING]
+> **Work in Progress / Research Preview** — This repository is under active research and development. APIs, binary formats, and architectural primitives may change without notice.
 
 **`snn_core`** is a bare-metal neuromorphic engine written in pure Rust, engineered for ultra-efficient Spiking Neural Network (SNN) and Bit-Parallel Temporal Network (**BPTN**) inference on resource-constrained microcontrollers and edge architectures (ARM Cortex-M0+/M3/M4 without FPU `thumbv7em-none-eabi`, RISC-V, ESP32).
 
