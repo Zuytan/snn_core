@@ -1,0 +1,18 @@
+# Kconfig for snn_core ESP-IDF component
+
+menu "snn_core Neuromorphic Configuration"
+
+    config SNN_CORE_ENABLE
+        bool "Enable snn_core engine"
+        default y
+        help
+            Enable the snn_core neuromorphic spiking neural network engine.
+
+    config SNN_CORE_RISCV_DSP
+        bool "Enable RISC-V DSP extensions (ESP32-C3 / ESP32-C6)"
+        depends on IDF_TARGET_ESP32C3 || IDF_TARGET_ESP32C6
+        default y
+        help
+            Enables 1-cycle packed SIMD arithmetic for RISC-V cores.
+
+endmenu

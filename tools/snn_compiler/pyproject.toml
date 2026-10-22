@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "snn-core-compiler"
+version = "0.4.0"
+description = "Industrial AOT Compiler for NIR Neuromorphic Models to Zero-Allocation Rust/C Firmware (snn_core)"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "PolyForm-Noncommercial-1.0.0" }
+authors = [{ name = "Zuytan" }]
+keywords = ["neuromorphic", "spiking-neural-networks", "tinyml", "nir", "embedded", "firmware", "compiler"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Rust",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "numpy>=1.20",
+]
+
+[project.optional-dependencies]
+nir = ["nir>=1.0.0"]
+all = ["nir>=1.0.0", "torch>=2.0"]
+
+[project.scripts]
+snn-compile = "snn_compiler.cli:main"

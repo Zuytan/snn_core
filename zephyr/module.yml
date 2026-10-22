@@ -1,0 +1,4 @@
+name: snn_core
+build:
+  cmake: .
+  kconfig: Kconfig

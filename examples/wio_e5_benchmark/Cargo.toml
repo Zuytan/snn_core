@@ -1,0 +1,27 @@
+[package]
+name = "wio_e5_benchmark"
+version = "0.1.0"
+edition = "2021"
+authors = ["Zuytan"]
+description = "Hardware benchmark suite and cycle-accurate profiling of snn_core on Seeed Studio Wio-E5 (STM32WLE5JC / Cortex-M4)"
+
+[dependencies]
+cortex-m = { version = "0.7.7", features = ["critical-section-single-core"] }
+cortex-m-rt = "0.7.5"
+rtt-target = "0.6.2"
+panic-halt = "0.2.0"
+
+[dependencies.snn_core]
+path = "../.."
+default-features = false
+features = ["cortex-m-dsp", "bptn"]
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+debug = 2
+lto = true
+opt-level = 3

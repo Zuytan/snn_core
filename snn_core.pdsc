@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package schemaVersion="1.7.7" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="https://raw.githubusercontent.com/Open-CMSIS-Pack/Open-CMSIS-Pack-Spec/v1.7.7/schema/PACK.xsd">
+  <vendor>Wildfire</vendor>
+  <name>snn_core</name>
+  <description>Ultra-low-power bare-metal Spiking Neural Network (SNN) neuromorphic engine in pure Rust (no_std, zero-alloc runtime).</description>
+  <url>https://github.com/Zuytan/snn_core</url>
+  <license>LICENSE.md</license>
+
+  <releases>
+    <release version="0.4.0" date="2026-10-22">
+      Major release: Bit-Parallel Temporal Networks (BPTN, R-BPTN, H-BPTN), ActivationArena zero-alloc ping-pong planner, standalone C99 runtime header, adversarial integrity test suite.
+    </release>
+    <release version="0.3.1" date="2026-10-16">
+      Industrial release: Arena memory planner, ARM Helium and RISC-V DSP acceleration, NIR AOT compiler, NeuroBench metrics.
+    </release>
+  </releases>
+
+  <keywords>
+    <keyword>AI</keyword>
+    <keyword>TinyML</keyword>
+    <keyword>Neuromorphic</keyword>
+    <keyword>SNN</keyword>
+    <keyword>Spiking Neural Network</keyword>
+    <keyword>Cortex-M</keyword>
+    <keyword>DSP</keyword>
+  </keywords>
+
+  <conditions>
+    <condition id="Cortex-M DSP">
+      <description>ARM Cortex-M with DSP Extension</description>
+      <accept Dcore="Cortex-M4"/>
+      <accept Dcore="Cortex-M7"/>
+      <accept Dcore="Cortex-M33"/>
+      <accept Dcore="Cortex-M55"/>
+      <accept Dcore="Cortex-M85"/>
+    </condition>
+  </conditions>
+
+  <components>
+    <component Cclass="Neuromorphic" Cgroup="snn_core" Csub="Core" Cversion="0.4.0">
+      <description>snn_core Neuromorphic Inference Engine</description>
+      <files>
+        <file category="header" name="include/snn_core.h"/>
+        <file category="header" name="include/snn_core_c99.h"/>
+        <file category="doc" name="README.md"/>
+        <file category="doc" name="docs/c_integration_guide.md"/>
+        <file category="doc" name="docs/binary_format_spec.md"/>
+      </files>
+    </component>
+  </components>
+</package>

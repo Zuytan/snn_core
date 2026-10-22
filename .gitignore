@@ -1,0 +1,25 @@
+# Rust build artifacts
+target/
+**/target/
+Cargo.lock
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# C and native build artifacts
+*.o
+*.a
+*.so
+*.dylib
+examples/c_embedded_app/c_embedded_app
+test_c99

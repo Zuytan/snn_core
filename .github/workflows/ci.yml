@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check-and-test:
+    name: Verification & Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+          targets: thumbv7em-none-eabi, thumbv6m-none-eabi, riscv32imc-unknown-none-elf
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python Dependencies
+        run: pip install numpy onnx
+
+      - name: Check Code Formatting
+        run: cargo fmt --all -- --check
+
+      - name: Clippy (Default Features)
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Clippy (Pure no_std / No Default Features)
+        run: cargo clippy --all-targets --no-default-features -- -D warnings
+
+      - name: Tests (Default Features)
+        run: cargo test --verbose
+
+      - name: Tests (Pure no_std / No Default Features)
+        run: cargo test --no-default-features --verbose
+
+      - name: Check ARM Cortex-M0+ Bare-Metal Target (thumbv6m-none-eabi)
+        run: cargo check --target thumbv6m-none-eabi --no-default-features
+
+      - name: Check ARM Cortex-M4 Bare-Metal Target (thumbv7em-none-eabi)
+        run: cargo check --target thumbv7em-none-eabi --no-default-features
+
+      - name: Check ARM Cortex-M4 DSP Hardware Acceleration
+        run: cargo check --target thumbv7em-none-eabi --no-default-features --features cortex-m-dsp
+
+      - name: Check RISC-V Bare-Metal Target (riscv32imc-unknown-none-elf)
+        run: cargo check --target riscv32imc-unknown-none-elf --no-default-features
+
+      - name: Compile and Run Standalone C99 Verification Suite
+        run: |
+          gcc -Wall -Wextra -O2 -Iinclude tests/test_c99_standalone.c -o test_c99
+          ./test_c99
+
+      - name: Run All Demonstrator Examples
+        run: |
+          cargo run --example 01_lif_reservoir
+          cargo run --example 02_alif_adaptation
+          cargo run --example 03_izhikevich_regimes
+          cargo run --example 04_static_embedded_pipeline
+          cargo run --example 05_shd_cochlea_benchmark
+          cargo run --example 06_tinyml_vs_snn_head_to_head
+          cargo run --example 07_nir_aot_codegen
+          cargo run --example 08_dwt_hardware_profiling
+          cargo run --release --example 09_bptn_vs_lif_head_to_head
+          cargo run --release --example 10_bptn_long_horizon_memory
+          cargo run --release --example 11_bptn_global_pipeline
+          cargo run --release --example 12_cyber_can_ids_killer_benchmark --features bptn
+
+      - name: Check Subcrates (C Bindings & Codegen)
+        run: |
+          (cd crates/snn_core_c && cargo check)
+          (cd tools/snn_core_codegen && cargo check)
+
+      - name: Verify NIR & ONNX AOT Compiler CLI Pipeline
+        run: |
+          python3 tools/nir_to_snn_core.py --input synthetic --output /tmp/nir_model.rs
+          test -f /tmp/nir_model.rs
+          PYTHONPATH=tools/snn_compiler python3 -m snn_compiler.cli --help

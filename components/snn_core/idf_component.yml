@@ -1,0 +1,15 @@
+version: "0.4.0"
+description: "Ultra-low-power bare-metal spiking neural network (SNN) engine in pure Rust (no_std, zero-alloc runtime) for ESP32, ESP32-S3, ESP32-C3, ESP32-C6"
+url: "https://github.com/Zuytan/snn_core"
+repository: "https://github.com/Zuytan/snn_core.git"
+targets:
+  - esp32
+  - esp32s3
+  - esp32c3
+  - esp32c6
+tags:
+  - neuromorphic
+  - snn
+  - tinyml
+  - ai
+  - rust

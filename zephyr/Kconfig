@@ -1,0 +1,31 @@
+# Kconfig - snn_core configuration for Zephyr RTOS
+
+menuconfig SNN_CORE
+    bool "snn_core Neuromorphic SNN Inference Engine"
+    default y
+    help
+      Enable snn_core ultra-low-power neuromorphic spiking neural network engine.
+      Zero dynamic allocations, fixed-point arithmetic (Fix32/Fix16/INT8),
+      and hardware DSP acceleration.
+
+if SNN_CORE
+
+config SNN_CORE_CORTEX_M_DSP
+    bool "Enable ARM Cortex-M DSP Intrinsics (SMLAD, SSAT, QADD16)"
+    default y if CPU_CORTEX_M4 || CPU_CORTEX_M7 || CPU_CORTEX_M33
+    help
+      Enables 1-cycle DSP assembly instructions on ARM Cortex-M processors.
+
+config SNN_CORE_CORTEX_M_HELIUM
+    bool "Enable ARMv8.1-M Helium (MVE) Vector SIMD"
+    default y if CPU_CORTEX_M55 || CPU_CORTEX_M85
+    help
+      Enables 128-bit Helium vector intrinsics on Cortex-M55 / Cortex-M85.
+
+config SNN_CORE_RISCV_DSP
+    bool "Enable RISC-V Packed SIMD DSP (KMADA, KADD16)"
+    default n
+    help
+      Enables 1-cycle packed SIMD instructions on RISC-V processors (RV32P).
+
+endif # SNN_CORE
