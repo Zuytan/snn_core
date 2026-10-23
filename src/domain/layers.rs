@@ -1454,16 +1454,14 @@ impl<Weight: SynapticWeight<T>, T: NumericScalar> SynapseMatrix<T>
                                             [target_base..target_base + self.out_channels];
                                         let w_slice = &self.kernel
                                             [weight_base..weight_base + self.out_channels];
-                                        let mut chunks_acc = acc_slice.chunks_exact_mut(4);
-                                        let mut chunks_w = w_slice.chunks_exact(4);
-                                        for (ca, cw) in chunks_acc.by_ref().zip(chunks_w.by_ref()) {
+                                        let (chunks_acc, rem_acc) = acc_slice.as_chunks_mut::<4>();
+                                        let (chunks_w, rem_w) = w_slice.as_chunks::<4>();
+                                        for (ca, cw) in chunks_acc.iter_mut().zip(chunks_w.iter()) {
                                             ca[0] = ca[0].saturating_add(cw[0].to_scalar());
                                             ca[1] = ca[1].saturating_add(cw[1].to_scalar());
                                             ca[2] = ca[2].saturating_add(cw[2].to_scalar());
                                             ca[3] = ca[3].saturating_add(cw[3].to_scalar());
                                         }
-                                        let rem_acc = chunks_acc.into_remainder();
-                                        let rem_w = chunks_w.remainder();
                                         for (acc, w) in rem_acc.iter_mut().zip(rem_w.iter()) {
                                             *acc = acc.saturating_add(w.to_scalar());
                                         }
