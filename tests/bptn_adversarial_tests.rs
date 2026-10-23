@@ -257,7 +257,7 @@ fn test_stochastic_1bit_latch_markov_degradation() {
         }
 
         let empirical_acc = correct as f64 / trials as f64;
-        let theoretical_acc = 0.5 * (1.0 + (1.0 - 2.0 * p_flip).powi(delta as i32));
+        let theoretical_acc = f64::midpoint(1.0, (1.0 - 2.0 * p_flip).powi(delta as i32));
 
         assert!(
             (empirical_acc - theoretical_acc).abs() < 0.03,
