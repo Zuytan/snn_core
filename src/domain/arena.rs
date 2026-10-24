@@ -89,8 +89,8 @@ impl<const MAX_NEURONS: usize, const MAX_WORDS: usize, T: NumericScalar>
 pub struct ArenaLifPopulation<const N: usize> {
     pub config: LifConfig,
     pub membrane_potentials: [Fix32; N],
-    pub refractory_times_left: [u8; N],
     pub bias: Option<&'static [Fix32; N]>,
+    pub refractory_times_left: [u8; N],
 }
 
 impl<const N: usize> ArenaLifPopulation<N> {
@@ -99,8 +99,8 @@ impl<const N: usize> ArenaLifPopulation<N> {
         Self {
             config,
             membrane_potentials: [config.reset_potential; N],
-            refractory_times_left: [0; N],
             bias: None,
+            refractory_times_left: [0; N],
         }
     }
 
@@ -154,7 +154,7 @@ impl<const N: usize> ArenaLifPopulation<N> {
             #[cfg(feature = "cortex-m0")]
             let decayed = crate::domain::hardware::fast_decay_m0(
                 self.membrane_potentials[i],
-                (self.config.decay_factor.0 as u32 & 0xFFFF) as u16,
+                self.config.decay_factor.0.max(0) as u32,
             );
             #[cfg(not(feature = "cortex-m0"))]
             let decayed = self.membrane_potentials[i] * self.config.decay_factor;
@@ -165,7 +165,7 @@ impl<const N: usize> ArenaLifPopulation<N> {
                     ResetMode::Hard => self.config.reset_potential,
                     ResetMode::Subtract => v - self.config.threshold,
                 };
-                *refractory = self.config.refractory_period as u8;
+                *refractory = self.config.refractory_period.min(255) as u8;
 
                 let word_idx = i / 32;
                 let bit_idx = i % 32;
@@ -184,8 +184,8 @@ impl<const N: usize> ArenaLifPopulation<N> {
 pub struct ArenaLif16Population<const N: usize> {
     pub config: Lif16Config,
     pub membrane_potentials: [Fix16; N],
-    pub refractory_times_left: [u8; N],
     pub bias: Option<&'static [Fix16; N]>,
+    pub refractory_times_left: [u8; N],
 }
 
 impl<const N: usize> ArenaLif16Population<N> {
@@ -193,8 +193,8 @@ impl<const N: usize> ArenaLif16Population<N> {
         Self {
             config,
             membrane_potentials: [config.reset_potential; N],
-            refractory_times_left: [0; N],
             bias: None,
+            refractory_times_left: [0; N],
         }
     }
 

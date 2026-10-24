@@ -127,19 +127,19 @@ impl NeuronDynamics<Fix32> for LifDynamics {
 
     #[inline]
     fn step(config: &Self::Config, state: &mut Self::State, input: Fix32) -> bool {
-        #[cfg(feature = "cortex-m0")]
-        let decayed = crate::domain::hardware::fast_decay_m0(
-            state.membrane_potential,
-            (config.decay_factor.0 as u32 & 0xFFFF) as u16,
-        );
-        #[cfg(not(feature = "cortex-m0"))]
-        let decayed = state.membrane_potential * config.decay_factor;
-
         if state.refractory_time_left > 0 {
             state.refractory_time_left -= 1;
             state.membrane_potential = config.reset_potential;
             return false;
         }
+
+        #[cfg(feature = "cortex-m0")]
+        let decayed = crate::domain::hardware::fast_decay_m0(
+            state.membrane_potential,
+            config.decay_factor.0.max(0) as u32,
+        );
+        #[cfg(not(feature = "cortex-m0"))]
+        let decayed = state.membrane_potential * config.decay_factor;
 
         state.membrane_potential = decayed + input + config.bias;
 

@@ -245,7 +245,7 @@ pub struct LayerDescriptor<'a> {
     /// Optional scaling factor applied to residual spikes (`Fix32::ONE` by default).
     pub residual_weight: Option<Fix32>,
     /// Offset in 32-bit words within the activation arena for scheduled DAG topologies.
-    pub activation_word_offset: usize,
+    pub activation_word_offset: Option<usize>,
     /// Optional spatial 2D Max-Pooling configuration (pure logical reduction without synapses).
     pub pool_config: Option<MaxPool2dConfig>,
 }
@@ -269,7 +269,7 @@ impl<'a> LayerDescriptor<'a> {
             source_layer: None,
             residual_source: None,
             residual_weight: None,
-            activation_word_offset: 0,
+            activation_word_offset: None,
             pool_config: None,
         }
     }
@@ -292,7 +292,7 @@ impl<'a> LayerDescriptor<'a> {
             source_layer: None,
             residual_source: None,
             residual_weight: None,
-            activation_word_offset: 0,
+            activation_word_offset: None,
             pool_config: None,
         }
     }
@@ -315,7 +315,7 @@ impl<'a> LayerDescriptor<'a> {
             source_layer: None,
             residual_source: None,
             residual_weight: None,
-            activation_word_offset: 0,
+            activation_word_offset: None,
             pool_config: None,
         }
     }
@@ -338,7 +338,7 @@ impl<'a> LayerDescriptor<'a> {
             source_layer: None,
             residual_source: None,
             residual_weight: None,
-            activation_word_offset: 0,
+            activation_word_offset: None,
             pool_config: None,
         }
     }
@@ -361,7 +361,7 @@ impl<'a> LayerDescriptor<'a> {
             source_layer: None,
             residual_source: None,
             residual_weight: None,
-            activation_word_offset: 0,
+            activation_word_offset: None,
             pool_config: None,
         }
     }
@@ -378,7 +378,7 @@ impl<'a> LayerDescriptor<'a> {
             source_layer: None,
             residual_source: None,
             residual_weight: None,
-            activation_word_offset: 0,
+            activation_word_offset: None,
             pool_config: Some(pool_config),
         }
     }
@@ -415,7 +415,7 @@ impl<'a> LayerDescriptor<'a> {
     /// Specifies the memory offset in the activation arena.
     #[must_use]
     pub const fn with_activation_offset(mut self, offset: usize) -> Self {
-        self.activation_word_offset = offset;
+        self.activation_word_offset = Some(offset);
         self
     }
 }
@@ -478,14 +478,18 @@ impl<'a> ModelDescriptor<'a> {
                 }
             }
 
-            if l.activation_word_offset > 0
+            if l.activation_word_offset.is_some()
                 || l.source_layer.is_some()
                 || l.residual_source.is_some()
             {
                 has_explicit_offsets = true;
             }
 
-            let end_word = l.activation_word_offset + out_w;
+            let offset_val = match l.activation_word_offset {
+                Some(off) => off,
+                None => 0,
+            };
+            let end_word = offset_val + out_w;
             if end_word > max_explicit_activation_word {
                 max_explicit_activation_word = end_word;
             }
@@ -654,34 +658,43 @@ impl<'a> ModelDescriptor<'a> {
             let n = layer.out_features;
             let out_words = n.div_ceil(32);
 
-            let out_offset = if layer.activation_word_offset > 0 {
-                layer.activation_word_offset
-            } else if l_idx % 2 == 0 {
-                0
-            } else {
-                max_w
+            let out_offset = match layer.activation_word_offset {
+                Some(offset) => offset,
+                None => {
+                    if l_idx % 2 == 0 {
+                        0
+                    } else {
+                        max_w
+                    }
+                }
             };
 
             // Case of a pure 2D Max-Pooling layer
             if let Some(pool_cfg) = &layer.pool_config {
                 let in_offset = if let Some(s_idx) = layer.source_layer {
                     let src_l = &self.layers[s_idx];
-                    if src_l.activation_word_offset > 0 {
-                        src_l.activation_word_offset
-                    } else if s_idx % 2 == 0 {
-                        0
-                    } else {
-                        max_w
+                    match src_l.activation_word_offset {
+                        Some(offset) => offset,
+                        None => {
+                            if s_idx % 2 == 0 {
+                                0
+                            } else {
+                                max_w
+                            }
+                        }
                     }
                 } else if l_idx > 0 {
                     let prev_idx = l_idx - 1;
                     let prev_l = &self.layers[prev_idx];
-                    if prev_l.activation_word_offset > 0 {
-                        prev_l.activation_word_offset
-                    } else if prev_idx % 2 == 0 {
-                        0
-                    } else {
-                        max_w
+                    match prev_l.activation_word_offset {
+                        Some(offset) => offset,
+                        None => {
+                            if prev_idx % 2 == 0 {
+                                0
+                            } else {
+                                max_w
+                            }
+                        }
                     }
                 } else {
                     0
@@ -699,12 +712,17 @@ impl<'a> ModelDescriptor<'a> {
                     let in_words = &second[..in_words_count];
                     pool_cfg.pool_spikes_words(in_words, out_target);
                 } else {
-                    let mut temp_in = [0u32; 32];
-                    let count = in_words_count.min(32);
-                    temp_in[..count]
-                        .copy_from_slice(&ctx.activation_arena[in_offset..in_offset + count]);
+                    let temp_in: &mut [u32] = unsafe {
+                        core::slice::from_raw_parts_mut(
+                            ctx.accumulators.as_mut_ptr().cast::<u32>(),
+                            in_words_count,
+                        )
+                    };
+                    temp_in.copy_from_slice(
+                        &ctx.activation_arena[in_offset..in_offset + in_words_count],
+                    );
                     let out_target = &mut ctx.activation_arena[out_offset..out_offset + out_words];
-                    pool_cfg.pool_spikes_words(&temp_in[..count], out_target);
+                    pool_cfg.pool_spikes_words(temp_in, out_target);
                 }
 
                 last_out_offset = out_offset;
@@ -721,22 +739,28 @@ impl<'a> ModelDescriptor<'a> {
             } else {
                 let in_offset = if let Some(s_idx) = layer.source_layer {
                     let src_l = &self.layers[s_idx];
-                    if src_l.activation_word_offset > 0 {
-                        src_l.activation_word_offset
-                    } else if s_idx % 2 == 0 {
-                        0
-                    } else {
-                        max_w
+                    match src_l.activation_word_offset {
+                        Some(offset) => offset,
+                        None => {
+                            if s_idx % 2 == 0 {
+                                0
+                            } else {
+                                max_w
+                            }
+                        }
                     }
                 } else {
                     let prev_idx = l_idx - 1;
                     let prev_l = &self.layers[prev_idx];
-                    if prev_l.activation_word_offset > 0 {
-                        prev_l.activation_word_offset
-                    } else if prev_idx % 2 == 0 {
-                        0
-                    } else {
-                        max_w
+                    match prev_l.activation_word_offset {
+                        Some(offset) => offset,
+                        None => {
+                            if prev_idx % 2 == 0 {
+                                0
+                            } else {
+                                max_w
+                            }
+                        }
                     }
                 };
 
@@ -748,12 +772,15 @@ impl<'a> ModelDescriptor<'a> {
             // 1b. Optional residual connection (skip connection)
             if let Some(res_idx) = layer.residual_source {
                 let res_l = &self.layers[res_idx];
-                let res_offset = if res_l.activation_word_offset > 0 {
-                    res_l.activation_word_offset
-                } else if res_idx % 2 == 0 {
-                    0
-                } else {
-                    max_w
+                let res_offset = match res_l.activation_word_offset {
+                    Some(offset) => offset,
+                    None => {
+                        if res_idx % 2 == 0 {
+                            0
+                        } else {
+                            max_w
+                        }
+                    }
                 };
                 let res_words_count = res_l.out_features.div_ceil(32);
                 let res_words = &ctx.activation_arena[res_offset..res_offset + res_words_count];
@@ -799,7 +826,7 @@ impl<'a> ModelDescriptor<'a> {
                 #[cfg(feature = "cortex-m0")]
                 let decayed = crate::domain::hardware::fast_decay_m0(
                     mem[i],
-                    (cfg.decay_factor.to_bits() & 0xFFFF) as u16,
+                    cfg.decay_factor.to_bits().max(0) as u32,
                 );
                 #[cfg(not(feature = "cortex-m0"))]
                 let decayed = mem[i] * cfg.decay_factor;
@@ -811,7 +838,7 @@ impl<'a> ModelDescriptor<'a> {
                         ResetMode::Hard => cfg.reset_potential,
                         ResetMode::Subtract => v - cfg.threshold,
                     };
-                    refr[i] = cfg.refractory_period as u8;
+                    refr[i] = cfg.refractory_period.min(255) as u8;
 
                     let w_idx = i / 32;
                     let bit_idx = i % 32;

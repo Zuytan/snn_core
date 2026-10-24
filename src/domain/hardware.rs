@@ -290,7 +290,7 @@ pub fn vqadd_8x16(a: [i16; 8], b: [i16; 8]) -> [i16; 8] {
 
 /// Vector decay for 4 Fix32 membrane potentials without slow 64-bit multiplication.
 #[inline(always)]
-pub fn vector_decay_4x32(v_mem: [Fix32; 4], decay_q16: u16) -> [Fix32; 4] {
+pub fn vector_decay_4x32(v_mem: [Fix32; 4], decay_q16: u32) -> [Fix32; 4] {
     [
         fast_decay_m0(v_mem[0], decay_q16),
         fast_decay_m0(v_mem[1], decay_q16),
@@ -309,7 +309,7 @@ pub fn vector_decay_4x32(v_mem: [Fix32; 4], decay_q16: u16) -> [Fix32; 4] {
 pub fn parallel_lif_step_4x32(
     v_mem: [Fix32; 4],
     inputs: [Fix32; 4],
-    decay_q16: u16,
+    decay_q16: u32,
     v_threshold: Fix32,
     v_reset: Fix32,
 ) -> ([Fix32; 4], u8) {
@@ -338,6 +338,8 @@ pub fn parallel_lif_step_4x32(
 /// This routine performs the multiplication $V_{\text{mem}} \times \text{decay}$ in pure 32-bit arithmetic
 /// using half-word decomposition without overflow or runtime library calls.
 ///
+/// Handles `decay_q16` up to $65536$ ($1.0$ in Q16) accurately without truncation.
+///
 /// # Example
 /// ```rust
 /// use snn_core::{Fix32, hardware::fast_decay_m0};
@@ -345,9 +347,17 @@ pub fn parallel_lif_step_4x32(
 /// let v = Fix32::from_num(1.0);
 /// let decayed = fast_decay_m0(v, 32768); // 0.5 factor in Q16
 /// assert!((decayed.to_float() - 0.5).abs() < 0.001);
+/// let no_decay = fast_decay_m0(v, 65536); // 1.0 factor in Q16
+/// assert_eq!(no_decay, v);
 /// ```
 #[inline(always)]
-pub fn fast_decay_m0(val: Fix32, decay_q16: u16) -> Fix32 {
+pub fn fast_decay_m0(val: Fix32, decay_q16: u32) -> Fix32 {
+    if decay_q16 >= 65536 {
+        return val;
+    }
+    if decay_q16 == 0 {
+        return Fix32::ZERO;
+    }
     let raw = val.to_bits();
     let is_neg = raw < 0;
     let abs_val = raw.unsigned_abs();
@@ -358,8 +368,8 @@ pub fn fast_decay_m0(val: Fix32, decay_q16: u16) -> Fix32 {
 
     // Partial products:
     // (V_hi * decay) + ((V_lo * decay) >> 16)
-    let p_hi = v_hi * (decay_q16 as u32);
-    let p_lo = (v_lo * (decay_q16 as u32)) >> 16;
+    let p_hi = v_hi * decay_q16;
+    let p_lo = (v_lo * decay_q16) >> 16;
     let result_mag = p_hi + p_lo;
 
     let res_bits = if is_neg {
@@ -405,14 +415,20 @@ impl FastDivider {
     /// placing constants directly into Flash ROM (.rodata).
     #[inline(always)]
     pub const fn new(divisor: usize) -> Self {
-        let d = divisor as u32;
-        if d <= 1 {
+        if divisor <= 1 {
             Self {
-                divisor: d,
+                divisor: divisor as u32,
+                m_hi: 0,
+                m_lo: 0,
+            }
+        } else if divisor > (u32::MAX as usize) {
+            Self {
+                divisor: u32::MAX,
                 m_hi: 0,
                 m_lo: 0,
             }
         } else {
+            let d = divisor as u32;
             // M = ceil(2^64 / d)
             let m = (1u128 << 64).div_ceil(d as u128);
             Self {
@@ -434,6 +450,9 @@ impl FastDivider {
     pub const fn div(&self, n: usize) -> usize {
         if self.divisor <= 1 {
             return n;
+        }
+        if self.m_hi == 0 && self.m_lo == 0 {
+            return 0;
         }
         if n > (u32::MAX as usize) {
             n / (self.divisor as usize)
@@ -520,7 +539,7 @@ mod tests {
     #[test]
     fn test_fast_decay_m0_accuracy() {
         // Decay factor 0.9 in Q16 = round(0.9 * 65536) = 58982
-        let decay_factor = 58982u16;
+        let decay_factor = 58982u32;
         let v = Fix32::from_num(1.5);
         let fast_res = fast_decay_m0(v, decay_factor);
 
@@ -528,6 +547,21 @@ mod tests {
         let std_res = v * Fix32::from_bits(decay_factor as i32);
         let diff = (fast_res.to_bits() - std_res.to_bits()).abs();
         assert!(diff <= 1, "Difference {} exceeds 1 LSB", diff);
+
+        // Decay factor 1.0 in Q16 = 65536 (must preserve potential exactly)
+        let no_decay = fast_decay_m0(v, 65536);
+        assert_eq!(no_decay, v);
+
+        // Negative potential with decay
+        let v_neg = Fix32::from_num(-1.5);
+        let fast_neg = fast_decay_m0(v_neg, decay_factor);
+        let std_neg = v_neg * Fix32::from_bits(decay_factor as i32);
+        let diff_neg = (fast_neg.to_bits() - std_neg.to_bits()).abs();
+        assert!(diff_neg <= 1, "Difference {} exceeds 1 LSB", diff_neg);
+
+        // Zero decay factor
+        let zero_res = fast_decay_m0(v, 0);
+        assert_eq!(zero_res, Fix32::ZERO);
     }
 
     #[test]
@@ -606,7 +640,7 @@ mod tests {
     #[test]
     fn test_parallel_lif_step_4x32() {
         // decay_q16: 0.5 in Q16 = 32768
-        let decay = 32768u16;
+        let decay = 32768u32;
         let v_threshold = Fix32::from_num(1.0);
         let v_reset = Fix32::ZERO;
 

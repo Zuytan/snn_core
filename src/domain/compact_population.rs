@@ -34,10 +34,10 @@ pub struct CompactLifPopulation<const N: usize> {
     pub membrane_potentials: [Fix32; N],
     /// Synaptic input accumulators (4 bytes per neuron).
     pub input_accumulators: [Fix32; N],
-    /// Remaining refractory time (1 byte per neuron).
-    pub refractory_times_left: [u8; N],
     /// Optional constant static bias in Flash ROM.
     pub bias: Option<&'static [Fix32; N]>,
+    /// Remaining refractory time (1 byte per neuron).
+    pub refractory_times_left: [u8; N],
 }
 
 impl<const N: usize> CompactLifPopulation<N> {
@@ -47,8 +47,8 @@ impl<const N: usize> CompactLifPopulation<N> {
             config,
             membrane_potentials: [config.reset_potential; N],
             input_accumulators: [Fix32::ZERO; N],
-            refractory_times_left: [0; N],
             bias: None,
+            refractory_times_left: [0; N],
         }
     }
 
@@ -101,7 +101,7 @@ impl<const N: usize> CompactLifPopulation<N> {
         #[cfg(feature = "cortex-m0")]
         let decayed = crate::domain::hardware::fast_decay_m0(
             self.membrane_potentials[i],
-            (self.config.decay_factor.0 as u32 & 0xFFFF) as u16,
+            self.config.decay_factor.0.max(0) as u32,
         );
         #[cfg(not(feature = "cortex-m0"))]
         let decayed = self.membrane_potentials[i] * self.config.decay_factor;
@@ -112,7 +112,7 @@ impl<const N: usize> CompactLifPopulation<N> {
                 ResetMode::Hard => self.config.reset_potential,
                 ResetMode::Subtract => v - self.config.threshold,
             };
-            *refractory = self.config.refractory_period as u8;
+            *refractory = self.config.refractory_period.min(255) as u8;
             true
         } else {
             self.membrane_potentials[i] = v;
@@ -162,13 +162,105 @@ impl<const N: usize> SpikingPopulation<Fix32> for CompactLifPopulation<N> {
     #[inline]
     fn tick_bitset(&mut self, bitset_words: &mut [u32]) {
         bitset_words.fill(0);
-        for i in 0..N {
-            let spike = self.step_neuron(i);
-            if spike {
-                let w_idx = i / 32;
-                let b_idx = i % 32;
-                if w_idx < bitset_words.len() {
-                    bitset_words[w_idx] |= 1 << b_idx;
+
+        #[cfg(feature = "cortex-m-helium")]
+        {
+            let mut i = 0;
+            let decay = self.config.decay_factor.0.max(0) as u32;
+            let thresh = self.config.threshold;
+            let reset = self.config.reset_potential;
+            let is_hard_reset = self.config.reset_mode == ResetMode::Hard;
+
+            while i + 4 <= N {
+                let any_refractory = self.refractory_times_left[i] > 0
+                    || self.refractory_times_left[i + 1] > 0
+                    || self.refractory_times_left[i + 2] > 0
+                    || self.refractory_times_left[i + 3] > 0;
+
+                if !any_refractory && is_hard_reset {
+                    let v4 = [
+                        self.membrane_potentials[i],
+                        self.membrane_potentials[i + 1],
+                        self.membrane_potentials[i + 2],
+                        self.membrane_potentials[i + 3],
+                    ];
+                    let in4 = match self.bias {
+                        Some(b) => [
+                            self.input_accumulators[i] + self.config.bias + b[i],
+                            self.input_accumulators[i + 1] + self.config.bias + b[i + 1],
+                            self.input_accumulators[i + 2] + self.config.bias + b[i + 2],
+                            self.input_accumulators[i + 3] + self.config.bias + b[i + 3],
+                        ],
+                        None => [
+                            self.input_accumulators[i] + self.config.bias,
+                            self.input_accumulators[i + 1] + self.config.bias,
+                            self.input_accumulators[i + 2] + self.config.bias,
+                            self.input_accumulators[i + 3] + self.config.bias,
+                        ],
+                    };
+                    self.input_accumulators[i] = Fix32::ZERO;
+                    self.input_accumulators[i + 1] = Fix32::ZERO;
+                    self.input_accumulators[i + 2] = Fix32::ZERO;
+                    self.input_accumulators[i + 3] = Fix32::ZERO;
+
+                    let (new_v, mask) = crate::domain::hardware::parallel_lif_step_4x32(
+                        v4, in4, decay, thresh, reset,
+                    );
+                    self.membrane_potentials[i..i + 4].copy_from_slice(&new_v);
+
+                    if mask != 0 {
+                        let refr = self.config.refractory_period.min(255) as u8;
+                        for bit in 0..4 {
+                            if (mask & (1 << bit)) != 0 {
+                                let neuron_idx = i + bit;
+                                self.refractory_times_left[neuron_idx] = refr;
+                                let w_idx = neuron_idx / 32;
+                                let b_idx = neuron_idx % 32;
+                                if w_idx < bitset_words.len() {
+                                    bitset_words[w_idx] |= 1 << b_idx;
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    for k in 0..4 {
+                        let idx = i + k;
+                        let spike = self.step_neuron(idx);
+                        if spike {
+                            let w_idx = idx / 32;
+                            let b_idx = idx % 32;
+                            if w_idx < bitset_words.len() {
+                                bitset_words[w_idx] |= 1 << b_idx;
+                            }
+                        }
+                    }
+                }
+                i += 4;
+            }
+
+            while i < N {
+                let spike = self.step_neuron(i);
+                if spike {
+                    let w_idx = i / 32;
+                    let b_idx = i % 32;
+                    if w_idx < bitset_words.len() {
+                        bitset_words[w_idx] |= 1 << b_idx;
+                    }
+                }
+                i += 1;
+            }
+        }
+
+        #[cfg(not(feature = "cortex-m-helium"))]
+        {
+            for i in 0..N {
+                let spike = self.step_neuron(i);
+                if spike {
+                    let w_idx = i / 32;
+                    let b_idx = i % 32;
+                    if w_idx < bitset_words.len() {
+                        bitset_words[w_idx] |= 1 << b_idx;
+                    }
                 }
             }
         }
@@ -209,10 +301,10 @@ pub struct CompactLif16Population<const N: usize> {
     pub membrane_potentials: [Fix16; N],
     /// Synaptic input accumulators (2 bytes per neuron).
     pub input_accumulators: [Fix16; N],
-    /// Remaining refractory time (1 byte per neuron).
-    pub refractory_times_left: [u8; N],
     /// Optional constant static bias in Flash ROM (2 bytes per neuron in Flash).
     pub bias: Option<&'static [Fix16; N]>,
+    /// Remaining refractory time (1 byte per neuron).
+    pub refractory_times_left: [u8; N],
 }
 
 impl<const N: usize> CompactLif16Population<N> {
@@ -222,8 +314,8 @@ impl<const N: usize> CompactLif16Population<N> {
             config,
             membrane_potentials: [config.reset_potential; N],
             input_accumulators: [Fix16::ZERO; N],
-            refractory_times_left: [0; N],
             bias: None,
+            refractory_times_left: [0; N],
         }
     }
 

@@ -26,12 +26,12 @@ pub struct LazyDecayLifPopulation<const N: usize, const MAX_LUT: usize = 64> {
     pub current_tick: u32,
     pub decay_lut: [Fix32; MAX_LUT],
     pub bias_lut: [Fix32; MAX_LUT],
-    /// Remaining refractory period per neuron (in number of ticks).
-    pub refractory_times_left: [u8; N],
-    /// Synaptic input accumulators for integration with SpikingPopulation.
-    pub input_accumulators: [Fix32; N],
     /// Optional static bias in Flash ROM.
     pub bias: Option<&'static [Fix32; N]>,
+    /// Synaptic input accumulators for integration with SpikingPopulation.
+    pub input_accumulators: [Fix32; N],
+    /// Remaining refractory period per neuron (in number of ticks).
+    pub refractory_times_left: [u8; N],
 }
 
 impl<const N: usize, const MAX_LUT: usize> LazyDecayLifPopulation<N, MAX_LUT> {
@@ -55,9 +55,9 @@ impl<const N: usize, const MAX_LUT: usize> LazyDecayLifPopulation<N, MAX_LUT> {
             current_tick: 0,
             decay_lut,
             bias_lut,
-            refractory_times_left: [0; N],
-            input_accumulators: [Fix32::ZERO; N],
             bias: None,
+            input_accumulators: [Fix32::ZERO; N],
+            refractory_times_left: [0; N],
         }
     }
 
@@ -116,15 +116,26 @@ impl<const N: usize, const MAX_LUT: usize> LazyDecayLifPopulation<N, MAX_LUT> {
         }
         let dt = self
             .current_tick
-            .saturating_sub(self.last_update_tick[neuron_idx]);
-        if dt == 0 {
-            self.membrane_potentials[neuron_idx]
+            .wrapping_sub(self.last_update_tick[neuron_idx]);
+        let refr = self.refractory_times_left[neuron_idx] as u32;
+        if dt < refr {
+            self.config.reset_potential
         } else {
-            let bias = self
-                .bias
-                .map_or(self.config.bias, |b| b[neuron_idx] + self.config.bias);
-            (self.membrane_potentials[neuron_idx] * self.decay_for_dt(dt))
-                + (bias * self.bias_decay_for_dt(dt))
+            let effective_dt = dt - refr;
+            let start_v = if refr > 0 {
+                self.config.reset_potential
+            } else {
+                self.membrane_potentials[neuron_idx]
+            };
+            if effective_dt == 0 {
+                start_v
+            } else {
+                let bias = self
+                    .bias
+                    .map_or(self.config.bias, |b| b[neuron_idx] + self.config.bias);
+                (start_v * self.decay_for_dt(effective_dt))
+                    + (bias * self.bias_decay_for_dt(effective_dt))
+            }
         }
     }
 
@@ -139,30 +150,31 @@ impl<const N: usize, const MAX_LUT: usize> LazyDecayLifPopulation<N, MAX_LUT> {
 
         let dt = self
             .current_tick
-            .saturating_sub(self.last_update_tick[neuron_idx]);
+            .wrapping_sub(self.last_update_tick[neuron_idx]);
 
-        // Update refractory state
-        if dt > 0 && self.refractory_times_left[neuron_idx] > 0 {
-            let elapsed_refr = dt.min(self.refractory_times_left[neuron_idx] as u32) as u8;
-            self.refractory_times_left[neuron_idx] -= elapsed_refr;
-        }
-
-        if self.refractory_times_left[neuron_idx] > 0 {
+        let refr = self.refractory_times_left[neuron_idx] as u32;
+        let (effective_dt, starting_v) = if dt < refr {
+            self.refractory_times_left[neuron_idx] -= dt as u8;
             self.membrane_potentials[neuron_idx] = self.config.reset_potential;
             self.last_update_tick[neuron_idx] = self.current_tick;
             return false;
-        }
-
-        let decayed_v = if dt == 0 {
-            self.membrane_potentials[neuron_idx]
+        } else if refr > 0 {
+            self.refractory_times_left[neuron_idx] = 0;
+            (dt - refr, self.config.reset_potential)
         } else {
-            self.membrane_potentials[neuron_idx] * self.decay_for_dt(dt)
+            (dt, self.membrane_potentials[neuron_idx])
+        };
+
+        let decayed_v = if effective_dt == 0 {
+            starting_v
+        } else {
+            starting_v * self.decay_for_dt(effective_dt)
         };
 
         let bias = self
             .bias
             .map_or(self.config.bias, |b| b[neuron_idx] + self.config.bias);
-        let bias_factor = self.bias_decay_for_dt(dt);
+        let bias_factor = self.bias_decay_for_dt(effective_dt);
         let accumulated_bias = bias * bias_factor;
 
         let new_v = decayed_v + input + accumulated_bias;
@@ -378,5 +390,44 @@ mod tests {
         let eager_spiked = LifDynamics::step(&config, &mut eager_state, Fix32::from_num(0.9));
         let lazy_spiked = lazy_pop.receive_input(0, Fix32::from_num(0.9));
         assert_eq!(lazy_spiked, eager_spiked);
+    }
+
+    #[test]
+    fn test_lazy_decay_refractory_and_wrapping() {
+        let decay = Fix32::from_num(0.9);
+        let config = LifConfig::new(Fix32::ONE, decay, Fix32::ZERO, 2);
+        let mut pop = LazyDecayLifPopulation::<1, 64>::new(config);
+
+        // Tick 0: Spike
+        assert!(pop.receive_input(0, Fix32::from_num(1.5)));
+        assert_eq!(pop.refractory_times_left[0], 2);
+
+        // Tick 1: Inside refractory period, input must be ignored
+        pop.advance_tick();
+        assert!(!pop.receive_input(0, Fix32::from_num(1.5)));
+        assert_eq!(pop.refractory_times_left[0], 1);
+        assert_eq!(pop.get_potential_at_current_tick(0), Fix32::ZERO);
+
+        // Tick 2: Exiting refractory period
+        pop.advance_tick();
+        assert!(!pop.receive_input(0, Fix32::from_num(0.5)));
+        assert_eq!(pop.refractory_times_left[0], 0);
+        assert_eq!(pop.get_potential_at_current_tick(0), Fix32::from_num(0.5));
+
+        // Test clock wrapping around u32::MAX
+        pop.current_tick = u32::MAX - 1;
+        pop.last_update_tick[0] = u32::MAX - 1;
+        pop.membrane_potentials[0] = Fix32::from_num(0.5);
+
+        // Advance 3 ticks across u32::MAX boundary
+        pop.advance_tick(); // u32::MAX
+        pop.advance_tick(); // 0
+        pop.advance_tick(); // 1
+        assert_eq!(pop.current_tick, 1);
+
+        // At current_tick = 1, dt should be 3
+        let v = pop.get_potential_at_current_tick(0);
+        let expected = Fix32::from_num(0.5) * pop.decay_for_dt(3);
+        assert_eq!(v, expected);
     }
 }

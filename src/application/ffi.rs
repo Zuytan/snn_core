@@ -390,10 +390,8 @@ pub unsafe extern "C" fn snn_network_step(
 
         let current_v = Fix32::from_bits(mem_slice[i]);
         #[cfg(feature = "cortex-m0")]
-        let decayed = crate::domain::hardware::fast_decay_m0(
-            current_v,
-            (d.config.decay_factor as u32 & 0xFFFF) as u16,
-        );
+        let decayed =
+            crate::domain::hardware::fast_decay_m0(current_v, d.config.decay_factor.max(0) as u32);
         #[cfg(not(feature = "cortex-m0"))]
         let decayed = current_v * cfg_decay;
 
@@ -514,6 +512,44 @@ pub enum SnnLayerType {
     Feedforward = 0,
     /// INT8 quantized layer with shared Fix32 scale factor
     QuantizedInt8 = 1,
+    /// Event-driven 2D Convolution layer
+    Conv2d = 2,
+    /// Spatial Max-Pooling 2D (bitwise OR)
+    MaxPool2d = 3,
+}
+
+/// 2D Convolution layer descriptor in C API
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default)]
+pub struct SnnConv2dDesc {
+    pub kernel: *const i32,
+    pub in_channels: usize,
+    pub out_channels: usize,
+    pub kernel_h: usize,
+    pub kernel_w: usize,
+    pub stride_h: usize,
+    pub stride_w: usize,
+    pub padding_h: usize,
+    pub padding_w: usize,
+    pub in_h: usize,
+    pub in_w: usize,
+    pub out_h: usize,
+    pub out_w: usize,
+}
+
+/// Spatial 2D Max Pooling descriptor in C API
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default)]
+pub struct SnnMaxPool2dDesc {
+    pub channels: usize,
+    pub in_h: usize,
+    pub in_w: usize,
+    pub kernel_h: usize,
+    pub kernel_w: usize,
+    pub stride_h: usize,
+    pub stride_w: usize,
+    pub out_h: usize,
+    pub out_w: usize,
 }
 
 /// C descriptor for a layer in a deep network
@@ -525,8 +561,42 @@ pub struct SnnLayerDesc {
     pub num_neurons: usize,
     pub config: SnnLifConfig,
     pub synapses: SnnCsrMatrix,
+    pub conv2d: SnnConv2dDesc,
+    pub pool2d: SnnMaxPool2dDesc,
+    pub recurrent_synapses: *const SnnCsrMatrix,
     pub bias: *const i32,
     pub quant_scale: i32,
+}
+
+impl Default for SnnLayerDesc {
+    fn default() -> Self {
+        Self {
+            layer_type: SnnLayerType::Feedforward,
+            in_features: 0,
+            num_neurons: 0,
+            config: SnnLifConfig {
+                decay_factor: 0,
+                threshold: 0,
+                reset_potential: 0,
+                refractory_period: 0,
+                bias: 0,
+                reset_mode: 0,
+            },
+            synapses: SnnCsrMatrix {
+                row_ptrs: core::ptr::null(),
+                targets: core::ptr::null(),
+                weights: core::ptr::null(),
+                in_features: 0,
+                out_features: 0,
+                total_synapses: 0,
+            },
+            conv2d: SnnConv2dDesc::default(),
+            pool2d: SnnMaxPool2dDesc::default(),
+            recurrent_synapses: core::ptr::null(),
+            bias: core::ptr::null(),
+            quant_scale: 0,
+        }
+    }
 }
 
 /// Full C descriptor of a multilayer network operating on ActivationArena
@@ -547,9 +617,11 @@ pub struct SnnDeepNetworkState {
     pub arena_accumulators: *mut i32,
     pub ping_words: *mut u32,
     pub pong_words: *mut u32,
+    pub recurrent_spikes: *mut u32,
     pub total_neurons: usize,
     pub max_neurons: usize,
     pub max_words: usize,
+    pub total_recurrent_words: usize,
 }
 
 /// Calculates exact size in bytes required for deep network state
@@ -569,12 +641,16 @@ pub unsafe extern "C" fn snn_deep_network_state_size(desc: *const SnnDeepNetwork
     let mut total_neurons = 0;
     let mut max_neurons = 0;
     let mut max_words = 0;
+    let mut total_rec_words = 0;
 
     for l in layers {
         total_neurons += l.num_neurons;
         max_neurons = max_neurons.max(l.num_neurons);
         let w = l.num_neurons.div_ceil(32);
         max_words = max_words.max(w);
+        if !l.recurrent_synapses.is_null() {
+            total_rec_words += w;
+        }
     }
 
     if total_neurons == 0 {
@@ -586,8 +662,9 @@ pub unsafe extern "C" fn snn_deep_network_state_size(desc: *const SnnDeepNetwork
     let acc_bytes = max_neurons * core::mem::size_of::<i32>();
     let ping_bytes = max_words * core::mem::size_of::<u32>();
     let pong_bytes = max_words * core::mem::size_of::<u32>();
+    let rec_bytes = total_rec_words * core::mem::size_of::<u32>();
 
-    mem_bytes + refr_bytes + acc_bytes + ping_bytes + pong_bytes
+    mem_bytes + refr_bytes + acc_bytes + ping_bytes + pong_bytes + rec_bytes
 }
 
 /// Initializes deep network state in user-provided SRAM arena
@@ -621,19 +698,28 @@ pub unsafe extern "C" fn snn_deep_network_init_state(
     let mut total_neurons = 0;
     let mut max_neurons = 0;
     let mut max_words = 0;
+    let mut total_rec_words = 0;
     for l in layers {
         total_neurons += l.num_neurons;
         max_neurons = max_neurons.max(l.num_neurons);
         let w = l.num_neurons.div_ceil(32);
         max_words = max_words.max(w);
+        if !l.recurrent_synapses.is_null() {
+            total_rec_words += w;
+        }
     }
 
     let mem_ptr = arena.cast::<i32>();
-    let refr_ptr = unsafe { mem_ptr.add(total_neurons).cast::<u8>() };
     let refr_aligned = (total_neurons + 3) & !3;
+    let refr_ptr = unsafe { arena.add(total_neurons * core::mem::size_of::<i32>()) };
     let acc_ptr = (refr_ptr as usize + refr_aligned) as *mut i32;
     let ping_ptr = unsafe { acc_ptr.add(max_neurons).cast::<u32>() };
     let pong_ptr = unsafe { ping_ptr.add(max_words) };
+    let rec_ptr = if total_rec_words > 0 {
+        unsafe { pong_ptr.add(max_words) }
+    } else {
+        core::ptr::null_mut()
+    };
 
     // Initialize membrane potentials per layer
     let mut offset = 0;
@@ -659,6 +745,13 @@ pub unsafe extern "C" fn snn_deep_network_init_state(
             *pong_ptr.add(w) = 0;
         }
     }
+    if !rec_ptr.is_null() {
+        for w in 0..total_rec_words {
+            unsafe {
+                *rec_ptr.add(w) = 0;
+            }
+        }
+    }
 
     unsafe {
         (*out_state).membrane_potentials = mem_ptr;
@@ -666,9 +759,11 @@ pub unsafe extern "C" fn snn_deep_network_init_state(
         (*out_state).arena_accumulators = acc_ptr;
         (*out_state).ping_words = ping_ptr;
         (*out_state).pong_words = pong_ptr;
+        (*out_state).recurrent_spikes = rec_ptr;
         (*out_state).total_neurons = total_neurons;
         (*out_state).max_neurons = max_neurons;
         (*out_state).max_words = max_words;
+        (*out_state).total_recurrent_words = total_rec_words;
     }
 
     0
@@ -712,6 +807,7 @@ pub unsafe extern "C" fn snn_deep_network_step(
     let pong_slice = unsafe { core::slice::from_raw_parts_mut(s.pong_words, s.max_words) };
 
     let mut neuron_offset = 0;
+    let mut rec_word_offset = 0;
 
     for (layer_idx, layer) in layers.iter().enumerate() {
         let n = layer.num_neurons;
@@ -728,92 +824,352 @@ pub unsafe extern "C" fn snn_deep_network_step(
             ping_slice[..words].fill(0);
         }
 
-        // 2. Synaptic propagation
-        let syn = &layer.synapses;
-        if layer_idx == 0 {
-            // Layer 0: receives continuous weighted inputs
-            if !inputs.is_null()
-                && inputs_len > 0
-                && !syn.row_ptrs.is_null()
-                && !syn.targets.is_null()
-                && !syn.weights.is_null()
-                && syn.total_synapses > 0
-            {
-                let in_slice =
-                    unsafe { core::slice::from_raw_parts(inputs, inputs_len.min(syn.in_features)) };
-                let row_ptrs =
-                    unsafe { core::slice::from_raw_parts(syn.row_ptrs, in_slice.len() + 1) };
-                let targets =
-                    unsafe { core::slice::from_raw_parts(syn.targets, syn.total_synapses) };
-                let weights =
-                    unsafe { core::slice::from_raw_parts(syn.weights, syn.total_synapses) };
+        // 2. Spatial Pooling (MaxPool2D) bypass
+        if layer.layer_type == SnnLayerType::MaxPool2d {
+            let p = &layer.pool2d;
+            let prev_words = if layer_idx > 0 {
+                layers[layer_idx - 1].num_neurons.div_ceil(32)
+            } else {
+                0
+            };
 
-                for (in_idx, &in_val) in in_slice.iter().enumerate() {
-                    if in_val != 0 {
-                        let start = (row_ptrs[in_idx] as usize).min(syn.total_synapses);
-                        let end = (row_ptrs[in_idx + 1] as usize).min(syn.total_synapses);
-                        let in_fix = Fix32::from_bits(in_val);
-                        for syn_idx in start..end {
-                            let target = targets[syn_idx] as usize;
-                            if target < n {
-                                let weighted = if layer.layer_type == SnnLayerType::QuantizedInt8 {
-                                    let raw_i8 = weights[syn_idx] as i8;
-                                    let scale = Fix32::from_bits(layer.quant_scale);
-                                    let syn_w = scale * Fix32::from_num(raw_i8 as f32);
-                                    (in_fix * syn_w).to_bits()
-                                } else {
-                                    let w_fix = Fix32::from_bits(weights[syn_idx]);
-                                    (in_fix * w_fix).to_bits()
-                                };
-                                acc_slice[target] = acc_slice[target].saturating_add(weighted);
+            let pool_op = |src: &[u32], dst: &mut [u32]| {
+                let mut out_idx = 0;
+                for c in 0..p.channels {
+                    for oh in 0..p.out_h {
+                        for ow in 0..p.out_w {
+                            let mut pooled = false;
+                            for kh in 0..p.kernel_h {
+                                for kw in 0..p.kernel_w {
+                                    let ih = oh * p.stride_h + kh;
+                                    let iw = ow * p.stride_w + kw;
+                                    let in_idx = (c * p.in_h + ih) * p.in_w + iw;
+                                    let w = in_idx / 32;
+                                    let b = in_idx % 32;
+                                    if w < prev_words && ((src[w] >> b) & 1) != 0 {
+                                        pooled = true;
+                                        break;
+                                    }
+                                }
+                                if pooled {
+                                    break;
+                                }
                             }
+                            if pooled {
+                                let ow_idx = out_idx / 32;
+                                let ob_idx = out_idx % 32;
+                                if ow_idx < words {
+                                    dst[ow_idx] |= 1 << ob_idx;
+                                }
+                            }
+                            out_idx += 1;
+                        }
+                    }
+                }
+            };
+
+            if is_even {
+                pool_op(&ping_slice[..prev_words], &mut pong_slice[..words]);
+            } else {
+                pool_op(&pong_slice[..prev_words], &mut ping_slice[..words]);
+            }
+
+            neuron_offset += n;
+            continue;
+        }
+
+        // 3. Synaptic propagation
+        if layer.layer_type == SnnLayerType::Conv2d {
+            let conv = &layer.conv2d;
+            if layer_idx == 0 {
+                if !inputs.is_null() && inputs_len > 0 && !conv.kernel.is_null() {
+                    let in_slice = unsafe { core::slice::from_raw_parts(inputs, inputs_len) };
+                    let kernel_len =
+                        conv.out_channels * conv.in_channels * conv.kernel_h * conv.kernel_w;
+                    let k_slice = unsafe { core::slice::from_raw_parts(conv.kernel, kernel_len) };
+                    for ic in 0..conv.in_channels {
+                        for ih in 0..conv.in_h {
+                            for iw in 0..conv.in_w {
+                                let in_idx = (ic * conv.in_h + ih) * conv.in_w + iw;
+                                if in_idx < inputs_len {
+                                    let in_val = in_slice[in_idx];
+                                    if in_val != 0 {
+                                        let in_fix = Fix32::from_bits(in_val);
+                                        let virt_h = ih + conv.padding_h;
+                                        let virt_w = iw + conv.padding_w;
+                                        for kh in 0..conv.kernel_h {
+                                            if virt_h >= kh
+                                                && (virt_h - kh).is_multiple_of(conv.stride_h)
+                                            {
+                                                let oh = (virt_h - kh) / conv.stride_h;
+                                                if oh < conv.out_h {
+                                                    for kw in 0..conv.kernel_w {
+                                                        if virt_w >= kw
+                                                            && (virt_w - kw)
+                                                                .is_multiple_of(conv.stride_w)
+                                                        {
+                                                            let ow = (virt_w - kw) / conv.stride_w;
+                                                            if ow < conv.out_w {
+                                                                for oc in 0..conv.out_channels {
+                                                                    let k_idx = ((oc
+                                                                        * conv.in_channels
+                                                                        + ic)
+                                                                        * conv.kernel_h
+                                                                        + kh)
+                                                                        * conv.kernel_w
+                                                                        + kw;
+                                                                    let w_fix = Fix32::from_bits(
+                                                                        k_slice[k_idx],
+                                                                    );
+                                                                    let out_idx = (oc * conv.out_h
+                                                                        + oh)
+                                                                        * conv.out_w
+                                                                        + ow;
+                                                                    if out_idx < n {
+                                                                        let weighted = (in_fix
+                                                                            * w_fix)
+                                                                            .to_bits();
+                                                                        acc_slice[out_idx] =
+                                                                            acc_slice[out_idx]
+                                                                                .saturating_add(
+                                                                                    weighted,
+                                                                                );
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                let prev_layer = &layers[layer_idx - 1];
+                let prev_words = prev_layer.num_neurons.div_ceil(32);
+                let in_spikes = if is_even {
+                    &ping_slice[..prev_words]
+                } else {
+                    &pong_slice[..prev_words]
+                };
+                if !conv.kernel.is_null() {
+                    let kernel_len =
+                        conv.out_channels * conv.in_channels * conv.kernel_h * conv.kernel_w;
+                    let k_slice = unsafe { core::slice::from_raw_parts(conv.kernel, kernel_len) };
+                    for (w_idx, &word) in in_spikes.iter().enumerate() {
+                        let mut active = word;
+                        while active != 0 {
+                            let bit_idx = active.trailing_zeros() as usize;
+                            let pre_neuron = w_idx * 32 + bit_idx;
+                            if pre_neuron < prev_layer.num_neurons && conv.in_w > 0 && conv.in_h > 0
+                            {
+                                let iw = pre_neuron % conv.in_w;
+                                let tmp = pre_neuron / conv.in_w;
+                                let ih = tmp % conv.in_h;
+                                let ic = tmp / conv.in_h;
+                                if ic < conv.in_channels {
+                                    let virt_h = ih + conv.padding_h;
+                                    let virt_w = iw + conv.padding_w;
+                                    for kh in 0..conv.kernel_h {
+                                        if virt_h >= kh
+                                            && (virt_h - kh).is_multiple_of(conv.stride_h)
+                                        {
+                                            let oh = (virt_h - kh) / conv.stride_h;
+                                            if oh < conv.out_h {
+                                                for kw in 0..conv.kernel_w {
+                                                    if virt_w >= kw
+                                                        && (virt_w - kw)
+                                                            .is_multiple_of(conv.stride_w)
+                                                    {
+                                                        let ow = (virt_w - kw) / conv.stride_w;
+                                                        if ow < conv.out_w {
+                                                            for oc in 0..conv.out_channels {
+                                                                let k_idx =
+                                                                    ((oc * conv.in_channels + ic)
+                                                                        * conv.kernel_h
+                                                                        + kh)
+                                                                        * conv.kernel_w
+                                                                        + kw;
+                                                                let w = k_slice[k_idx];
+                                                                let out_idx = (oc * conv.out_h
+                                                                    + oh)
+                                                                    * conv.out_w
+                                                                    + ow;
+                                                                if out_idx < n {
+                                                                    acc_slice[out_idx] = acc_slice
+                                                                        [out_idx]
+                                                                        .saturating_add(w);
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            active &= active - 1;
                         }
                     }
                 }
             }
         } else {
-            // Subsequent layers: receive spikes from previous layer
-            let prev_layer = &layers[layer_idx - 1];
-            let prev_words = prev_layer.num_neurons.div_ceil(32);
-            let in_spikes = if is_even {
-                &ping_slice[..prev_words]
+            let syn = &layer.synapses;
+            if layer_idx == 0 {
+                // Layer 0: receives continuous weighted inputs
+                if !inputs.is_null()
+                    && inputs_len > 0
+                    && !syn.row_ptrs.is_null()
+                    && !syn.targets.is_null()
+                    && !syn.weights.is_null()
+                    && syn.total_synapses > 0
+                {
+                    let in_slice = unsafe {
+                        core::slice::from_raw_parts(inputs, inputs_len.min(syn.in_features))
+                    };
+                    let row_ptrs =
+                        unsafe { core::slice::from_raw_parts(syn.row_ptrs, in_slice.len() + 1) };
+                    let targets =
+                        unsafe { core::slice::from_raw_parts(syn.targets, syn.total_synapses) };
+
+                    for (in_idx, &in_val) in in_slice.iter().enumerate() {
+                        if in_val != 0 {
+                            let start = (row_ptrs[in_idx] as usize).min(syn.total_synapses);
+                            let end = (row_ptrs[in_idx + 1] as usize).min(syn.total_synapses);
+                            let in_fix = Fix32::from_bits(in_val);
+                            for syn_idx in start..end {
+                                let target = targets[syn_idx] as usize;
+                                if target < n {
+                                    let weighted = if layer.layer_type
+                                        == SnnLayerType::QuantizedInt8
+                                    {
+                                        let weights_i8 = unsafe {
+                                            core::slice::from_raw_parts(
+                                                syn.weights.cast::<i8>(),
+                                                syn.total_synapses,
+                                            )
+                                        };
+                                        let raw_i8 = weights_i8[syn_idx];
+                                        let scale = Fix32::from_bits(layer.quant_scale);
+                                        let syn_w = scale * Fix32::from_bits((raw_i8 as i32) << 16);
+                                        (in_fix * syn_w).to_bits()
+                                    } else {
+                                        let weights_i32 = unsafe {
+                                            core::slice::from_raw_parts(
+                                                syn.weights,
+                                                syn.total_synapses,
+                                            )
+                                        };
+                                        let w_fix = Fix32::from_bits(weights_i32[syn_idx]);
+                                        (in_fix * w_fix).to_bits()
+                                    };
+                                    acc_slice[target] = acc_slice[target].saturating_add(weighted);
+                                }
+                            }
+                        }
+                    }
+                }
             } else {
-                &pong_slice[..prev_words]
-            };
-
-            if !syn.row_ptrs.is_null()
-                && !syn.targets.is_null()
-                && !syn.weights.is_null()
-                && syn.total_synapses > 0
-            {
-                let row_ptrs = unsafe {
-                    core::slice::from_raw_parts(syn.row_ptrs, prev_layer.num_neurons + 1)
+                // Subsequent layers: receive spikes from previous layer
+                let prev_layer = &layers[layer_idx - 1];
+                let prev_words = prev_layer.num_neurons.div_ceil(32);
+                let in_spikes = if is_even {
+                    &ping_slice[..prev_words]
+                } else {
+                    &pong_slice[..prev_words]
                 };
-                let targets =
-                    unsafe { core::slice::from_raw_parts(syn.targets, syn.total_synapses) };
-                let weights =
-                    unsafe { core::slice::from_raw_parts(syn.weights, syn.total_synapses) };
 
-                for (w_idx, &word) in in_spikes.iter().enumerate() {
+                if !syn.row_ptrs.is_null()
+                    && !syn.targets.is_null()
+                    && !syn.weights.is_null()
+                    && syn.total_synapses > 0
+                {
+                    let row_ptrs = unsafe {
+                        core::slice::from_raw_parts(syn.row_ptrs, prev_layer.num_neurons + 1)
+                    };
+                    let targets =
+                        unsafe { core::slice::from_raw_parts(syn.targets, syn.total_synapses) };
+
+                    for (w_idx, &word) in in_spikes.iter().enumerate() {
+                        let mut active = word;
+                        while active != 0 {
+                            let bit_idx = active.trailing_zeros() as usize;
+                            let pre_neuron = w_idx * 32 + bit_idx;
+                            if pre_neuron < prev_layer.num_neurons {
+                                let start = (row_ptrs[pre_neuron] as usize).min(syn.total_synapses);
+                                let end =
+                                    (row_ptrs[pre_neuron + 1] as usize).min(syn.total_synapses);
+                                for syn_idx in start..end {
+                                    let target = targets[syn_idx] as usize;
+                                    if target < n {
+                                        let weight =
+                                            if layer.layer_type == SnnLayerType::QuantizedInt8 {
+                                                let weights_i8 = unsafe {
+                                                    core::slice::from_raw_parts(
+                                                        syn.weights.cast::<i8>(),
+                                                        syn.total_synapses,
+                                                    )
+                                                };
+                                                let raw_i8 = weights_i8[syn_idx];
+                                                let scale = Fix32::from_bits(layer.quant_scale);
+                                                (scale * Fix32::from_bits((raw_i8 as i32) << 16))
+                                                    .to_bits()
+                                            } else {
+                                                let weights_i32 = unsafe {
+                                                    core::slice::from_raw_parts(
+                                                        syn.weights,
+                                                        syn.total_synapses,
+                                                    )
+                                                };
+                                                weights_i32[syn_idx]
+                                            };
+                                        acc_slice[target] =
+                                            acc_slice[target].saturating_add(weight);
+                                    }
+                                }
+                            }
+                            active &= active - 1;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. Recurrent synapses W_rec propagation
+        if !layer.recurrent_synapses.is_null() && !s.recurrent_spikes.is_null() {
+            let rec = unsafe { &*layer.recurrent_synapses };
+            if !rec.row_ptrs.is_null()
+                && !rec.targets.is_null()
+                && !rec.weights.is_null()
+                && rec.total_synapses > 0
+            {
+                let r_spikes = unsafe {
+                    core::slice::from_raw_parts(s.recurrent_spikes.add(rec_word_offset), words)
+                };
+                let row_ptrs = unsafe { core::slice::from_raw_parts(rec.row_ptrs, n + 1) };
+                let targets =
+                    unsafe { core::slice::from_raw_parts(rec.targets, rec.total_synapses) };
+                let weights =
+                    unsafe { core::slice::from_raw_parts(rec.weights, rec.total_synapses) };
+
+                for (w_idx, &word) in r_spikes.iter().enumerate() {
                     let mut active = word;
                     while active != 0 {
                         let bit_idx = active.trailing_zeros() as usize;
                         let pre_neuron = w_idx * 32 + bit_idx;
-                        if pre_neuron < prev_layer.num_neurons {
-                            let start = (row_ptrs[pre_neuron] as usize).min(syn.total_synapses);
-                            let end = (row_ptrs[pre_neuron + 1] as usize).min(syn.total_synapses);
+                        if pre_neuron < n {
+                            let start = (row_ptrs[pre_neuron] as usize).min(rec.total_synapses);
+                            let end = (row_ptrs[pre_neuron + 1] as usize).min(rec.total_synapses);
                             for syn_idx in start..end {
                                 let target = targets[syn_idx] as usize;
                                 if target < n {
-                                    let weight = if layer.layer_type == SnnLayerType::QuantizedInt8
-                                    {
-                                        let raw_i8 = weights[syn_idx] as i8;
-                                        let scale = Fix32::from_bits(layer.quant_scale);
-                                        (scale * Fix32::from_num(raw_i8 as f32)).to_bits()
-                                    } else {
-                                        weights[syn_idx]
-                                    };
-                                    acc_slice[target] = acc_slice[target].saturating_add(weight);
+                                    acc_slice[target] =
+                                        acc_slice[target].saturating_add(weights[syn_idx]);
                                 }
                             }
                         }
@@ -823,7 +1179,7 @@ pub unsafe extern "C" fn snn_deep_network_step(
             }
         }
 
-        // 3. Dynamic membrane evaluation of neurons in this layer
+        // 5. Dynamic membrane evaluation of neurons in this layer
         let bias_slice = if layer.bias.is_null() {
             None
         } else {
@@ -849,6 +1205,12 @@ pub unsafe extern "C" fn snn_deep_network_step(
                 *v_mem = cfg_reset.to_bits();
             } else {
                 let v_cur = Fix32::from_bits(*v_mem);
+                #[cfg(feature = "cortex-m0")]
+                let decayed = crate::domain::hardware::fast_decay_m0(
+                    v_cur,
+                    cfg_decay.to_bits().max(0) as u32,
+                );
+                #[cfg(not(feature = "cortex-m0"))]
                 let decayed = v_cur * cfg_decay;
                 let v_next = decayed + total_in;
 
@@ -865,11 +1227,25 @@ pub unsafe extern "C" fn snn_deep_network_step(
                     } else {
                         cfg_reset.to_bits()
                     };
-                    *refr = layer.config.refractory_period as u8;
+                    *refr = layer.config.refractory_period.min(255) as u8;
                 } else {
                     *v_mem = v_next.to_bits();
                 }
             }
+        }
+
+        // 6. Save current spikes for recurrent next-step
+        if !layer.recurrent_synapses.is_null() && !s.recurrent_spikes.is_null() {
+            let dst_spikes = if is_even {
+                &pong_slice[..words]
+            } else {
+                &ping_slice[..words]
+            };
+            let rec_target = unsafe {
+                core::slice::from_raw_parts_mut(s.recurrent_spikes.add(rec_word_offset), words)
+            };
+            rec_target.copy_from_slice(dst_spikes);
+            rec_word_offset += words;
         }
 
         neuron_offset += n;
@@ -928,6 +1304,12 @@ pub unsafe extern "C" fn snn_deep_network_reset(
     acc_slice.fill(0);
     ping_slice.fill(0);
     pong_slice.fill(0);
+
+    if !s.recurrent_spikes.is_null() && s.total_recurrent_words > 0 {
+        let rec_slice =
+            unsafe { core::slice::from_raw_parts_mut(s.recurrent_spikes, s.total_recurrent_words) };
+        rec_slice.fill(0);
+    }
 
     0
 }
@@ -1411,6 +1793,9 @@ mod tests {
             num_neurons: 2,
             config: cfg,
             synapses: l0_syn,
+            conv2d: SnnConv2dDesc::default(),
+            pool2d: SnnMaxPool2dDesc::default(),
+            recurrent_synapses: core::ptr::null(),
             bias: core::ptr::null(),
             quant_scale: 0,
         };
@@ -1435,6 +1820,9 @@ mod tests {
             num_neurons: 2,
             config: cfg,
             synapses: l1_syn,
+            conv2d: SnnConv2dDesc::default(),
+            pool2d: SnnMaxPool2dDesc::default(),
+            recurrent_synapses: core::ptr::null(),
             bias: core::ptr::null(),
             quant_scale: 0,
         };

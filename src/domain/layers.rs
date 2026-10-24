@@ -179,6 +179,13 @@ impl<
         self.evaluate_neurons()
     }
 
+    /// Processes a time step from continuous weighted inputs.
+    pub fn tick_inputs(&mut self, inputs: &[T]) -> &SpikeBitset<WORDS> {
+        self.synapses
+            .propagate_weighted_inputs(inputs, self.neurons.input_accumulators_mut());
+        self.evaluate_neurons()
+    }
+
     #[inline]
     fn evaluate_neurons(&mut self) -> &SpikeBitset<WORDS> {
         self.neurons.tick_bitset(&mut self.spikes.words);
@@ -200,8 +207,8 @@ impl<
     }
 
     #[inline]
-    fn tick_inputs_words(&mut self, _inputs: &[T]) -> &[u32] {
-        self.spikes.words()
+    fn tick_inputs_words(&mut self, inputs: &[T]) -> &[u32] {
+        self.tick_inputs(inputs).words()
     }
 
     #[inline]
@@ -2074,6 +2081,13 @@ mod tests {
         // Neuron 1 receives 1.0 < 1.5 -> no spike
         assert!(spikes.get(0));
         assert!(!spikes.get(1));
+
+        layer.reset();
+        // Test continuous weighted inputs via SpikingLayer trait
+        let in_vals = [Fix32::ONE];
+        let out_words = layer.tick_inputs_words(&in_vals);
+        assert_eq!(out_words[0] & 1, 1);
+        assert_eq!(out_words[0] & 2, 0);
     }
 
     #[test]

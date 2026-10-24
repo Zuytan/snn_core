@@ -76,14 +76,14 @@ static void test_aer_decoding(void) {
     assert(snn_bitset_count_spikes(out_words_1d, 3) == 3);
 
     SnnAerSpike2d ev2d[2] = {
-        { .x = 1, .y = 0, .polarity = false, .timestamp = 100 }, // idx = (0*4+1)*2 + 0 = 2
-        { .x = 2, .y = 1, .polarity = true,  .timestamp = 102 }  // idx = (1*4+2)*2 + 1 = 13
+        { .x = 1, .y = 0, .polarity = false, .timestamp = 100 }, // Planar CHW: channel 1 (OFF) -> 16 + 0*4 + 1 = 17
+        { .x = 2, .y = 1, .polarity = true,  .timestamp = 102 }  // Planar CHW: channel 0 (ON)  -> 0 + 1*4 + 2 = 6
     };
     uint32_t out_words_2d[1] = { 0 };
     int32_t res2 = snn_aer_decode_2d_bipolar(ev2d, 2, 4, 4, out_words_2d, 1);
     assert(res2 == 0);
-    assert(snn_bitset_get_spike(out_words_2d, 1, 2) == true);
-    assert(snn_bitset_get_spike(out_words_2d, 1, 13) == true);
+    assert(snn_bitset_get_spike(out_words_2d, 1, 17) == true);
+    assert(snn_bitset_get_spike(out_words_2d, 1, 6) == true);
     assert(snn_bitset_count_spikes(out_words_2d, 1) == 2);
     printf("  -> OK (AER 1D & 2D DVS bit-exact decoding)\n");
 }
@@ -321,7 +321,9 @@ static void test_bptn_word_ram(void) {
     bool prev_trig = false;
     assert(snn_bptn_robust_toggle_step(&rob_hist, &prev_trig, true) == false); // 1 tick candidate
     assert(snn_bptn_robust_toggle_step(&rob_hist, &prev_trig, true) == true);  // 2 ticks confirmed -> toggle
-    assert(snn_bptn_robust_toggle_step(&rob_hist, &prev_trig, false) == true); // holds state
+    assert(snn_bptn_robust_toggle_step(&rob_hist, &prev_trig, true) == true);  // 3 ticks: 1st tick of next pair, still holds state
+    assert(snn_bptn_robust_toggle_step(&rob_hist, &prev_trig, true) == false); // 4 ticks: 2nd pair confirmed -> toggles back to false
+    assert(snn_bptn_robust_toggle_step(&rob_hist, &prev_trig, false) == false); // holds state
 
     // SWAR 8x8 Majority Pool
     uint64_t swar_x = 0x03ULL | (0x01ULL << 8) | (0x0FULL << 16);

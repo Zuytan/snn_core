@@ -271,6 +271,9 @@ fn test_fuzz_c_ffi_deep_network_adversarial() {
         num_neurons: 4,
         config: cfg,
         synapses: empty_syn,
+        conv2d: snn_core::application::ffi::SnnConv2dDesc::default(),
+        pool2d: snn_core::application::ffi::SnnMaxPool2dDesc::default(),
+        recurrent_synapses: core::ptr::null(),
         bias: core::ptr::null(),
         quant_scale: 0,
     };
@@ -292,9 +295,11 @@ fn test_fuzz_c_ffi_deep_network_adversarial() {
         arena_accumulators: core::ptr::null_mut(),
         ping_words: core::ptr::null_mut(),
         pong_words: core::ptr::null_mut(),
+        recurrent_spikes: core::ptr::null_mut(),
         total_neurons: 0,
         max_neurons: 0,
         max_words: 0,
+        total_recurrent_words: 0,
     };
 
     // Test misaligned arena

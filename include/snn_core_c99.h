@@ -217,7 +217,8 @@ SNN_INLINE int32_t snn_aer_decode_2d_bipolar(
         out_words[i] = 0;
     }
     for (size_t i = 0; i < event_count; ++i) {
-        size_t linear_idx = (((size_t)events[i].y * width) + (size_t)events[i].x) * 2 + (events[i].polarity ? 1 : 0);
+        size_t channel_offset = events[i].polarity ? 0 : (width * height);
+        size_t linear_idx = channel_offset + (((size_t)events[i].y * width) + (size_t)events[i].x);
         size_t w_idx = linear_idx / 32;
         size_t b_idx = linear_idx % 32;
         if (w_idx < words_count) {
@@ -1198,7 +1199,7 @@ SNN_INLINE bool snn_bptn_hysteresis_step(uint8_t* state, bool set, bool reset) {
 SNN_INLINE bool snn_bptn_robust_toggle_step(uint64_t* state_history, bool* prev_trigger, bool trigger) {
     if (state_history == NULL || prev_trigger == NULL) return false;
     bool confirmed = trigger && (*prev_trigger);
-    *prev_trigger = trigger;
+    *prev_trigger = confirmed ? false : trigger;
     bool q_prev = ((*state_history) & 1ULL) != 0ULL;
     bool new_q = confirmed ? (!q_prev) : q_prev;
     *state_history = ((*state_history) << 1) | (new_q ? 1ULL : 0ULL);

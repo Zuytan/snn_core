@@ -116,7 +116,7 @@ impl NeuronDynamics for AlifDynamics {
 
         if state.refractory_time_left > 0 {
             state.refractory_time_left -= 1;
-            state.membrane_potential *= config.decay_factor_v;
+            state.membrane_potential = config.reset_potential;
             return false;
         }
 

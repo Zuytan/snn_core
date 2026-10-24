@@ -80,7 +80,7 @@ impl<const N: usize> StaticNeuronPopulation<N> {
             if *refractory_time_left > 0 {
                 *refractory_time_left -= 1;
                 *input_accumulator = Fix32::ZERO;
-                *membrane_potential *= decay_factor;
+                *membrane_potential = reset_potential;
                 current_spikes[i] = false;
                 continue;
             }
@@ -151,7 +151,7 @@ impl<const N: usize> crate::traits::SpikingPopulation for StaticNeuronPopulation
             if *refractory_time_left > 0 {
                 *refractory_time_left -= 1;
                 *input_accumulator = Fix32::ZERO;
-                *membrane_potential *= decay_factor;
+                *membrane_potential = reset_potential;
                 current_spikes[i] = false;
                 continue;
             }

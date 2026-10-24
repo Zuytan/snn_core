@@ -407,6 +407,8 @@ pub struct StdpLearner {
     pub pre_traces: Vec<Fix32>,
     /// Post-synaptic activation traces (network population)
     pub post_traces: Vec<Fix32>,
+    /// Reusable mask for active neurons (eliminates per-tick dynamic allocations)
+    pub active_neurons_mask: Vec<bool>,
 }
 
 #[cfg(feature = "alloc")]
@@ -416,6 +418,7 @@ impl StdpLearner {
             config,
             pre_traces: vec![Fix32::ZERO; num_pre_inputs + num_neurons],
             post_traces: vec![Fix32::ZERO; num_neurons],
+            active_neurons_mask: vec![false; num_neurons],
         }
     }
 
@@ -499,11 +502,14 @@ impl StdpLearner {
         // 4. LTP for synapses (pre active in past -> post active now at tick t)
         // O(1) short-circuit: if no post-synaptic neuron fired, no LTP can occur
         if !active_neurons.is_empty() {
-            let mut is_neuron_active = vec![false; num_neurons];
+            if self.active_neurons_mask.len() < num_neurons {
+                self.active_neurons_mask.resize(num_neurons, false);
+            }
+            self.active_neurons_mask.fill(false);
             for &n in active_neurons {
                 let idx = n as usize;
                 if idx < num_neurons {
-                    is_neuron_active[idx] = true;
+                    self.active_neurons_mask[idx] = true;
                 }
             }
 
@@ -518,7 +524,7 @@ impl StdpLearner {
                             .min(input_weights.len());
                         for syn_idx in start..end {
                             let target = input_targets[syn_idx] as usize;
-                            if target < num_neurons && is_neuron_active[target] {
+                            if target < num_neurons && self.active_neurons_mask[target] {
                                 let dw = self.config.a_plus * pre_trace;
                                 input_weights[syn_idx] = (input_weights[syn_idx] + dw)
                                     .max(self.config.w_min)
@@ -540,7 +546,7 @@ impl StdpLearner {
                             .min(internal_weights.len());
                         for syn_idx in start..end {
                             let target = internal_targets[syn_idx] as usize;
-                            if target < num_neurons && is_neuron_active[target] {
+                            if target < num_neurons && self.active_neurons_mask[target] {
                                 let dw = self.config.a_plus * pre_trace;
                                 internal_weights[syn_idx] = (internal_weights[syn_idx] + dw)
                                     .max(self.config.w_min)
