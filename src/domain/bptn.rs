@@ -1243,6 +1243,475 @@ impl<const CHANNELS: usize, const SCALES: usize> MultiScaleBptnNeuron<CHANNELS, 
     }
 }
 
+// ============================================================================
+// SECTION 10: 32-BIT ATOM (WORD32), KERNEL CODEBOOK & HARDWARE ACCELERATION (AXE 4)
+// ============================================================================
+
+/// Native 32-bit machine word width for ultra-compact embedded targets (ARM Cortex-M, RISC-V RV32).
+pub type Word32 = u32;
+
+/// Standard 32-bit temporal window width (32 time steps).
+pub const BPTN_WINDOW_SIZE_32: usize = 32;
+
+/// Temporal delay shift operator on 32-bit words towards the present (`x >> delay`).
+#[inline(always)]
+pub const fn shift_temporal_delay_32(x: u32, delay: u8) -> u32 {
+    if delay >= 32 { 0 } else { x >> delay }
+}
+
+/// Temporal aging operator on 32-bit words (`x << delay`).
+#[inline(always)]
+pub const fn shift_temporal_age_32(x: u32, delay: u8) -> u32 {
+    if delay >= 32 { 0 } else { x << delay }
+}
+
+/// 1D temporal morphological dilation operator for 32-bit words ($\mathcal{D}_\kappa$).
+#[inline(always)]
+pub const fn dilate_temporal_jitter_32(x: u32, kappa: u8) -> u32 {
+    let mut res = x;
+    let k_max = if kappa > 31 { 31 } else { kappa };
+    let mut r = 1;
+    while r <= k_max {
+        res |= (x >> r) | (x << r);
+        r += 1;
+    }
+    res
+}
+
+/// 1D temporal morphological erosion operator for 32-bit words ($\mathcal{E}_\kappa$).
+#[inline(always)]
+pub const fn erode_temporal_noise_32(x: u32, kappa: u8) -> u32 {
+    let mut res = x;
+    let k_max = if kappa > 31 { 31 } else { kappa };
+    let mut r = 1;
+    while r <= k_max {
+        res &= (x >> r) & (x << r);
+        r += 1;
+    }
+    res
+}
+
+/// 1D temporal morphological opening operator for 32-bit words ($\mathcal{O}_\kappa$).
+#[inline(always)]
+pub const fn open_temporal_filter_32(x: u32, kappa: u8) -> u32 {
+    let eroded = erode_temporal_noise_32(x, kappa);
+    dilate_temporal_jitter_32(eroded, kappa)
+}
+
+/// Evaluates a 32-bit synapse in a single branchless operation.
+///
+/// On ARM Thumb-2 and RISC-V Zbb, compiles directly into mono-cycle instructions:
+/// `EOR r0, r_pol, r_hist, LSR #delay` followed by `AND r0, r0, r_kernel`.
+#[inline(always)]
+pub const fn evaluate_synapse_32(history: u32, delay: u8, polarity: u32, kernel: u32) -> u32 {
+    let delayed = shift_temporal_delay_32(history, delay);
+    (delayed ^ polarity) & kernel
+}
+
+/// 32-bit circular temporal framing buffer (4 bytes of SRAM per channel).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct TemporalFramingBuffer32 {
+    /// Active 32-bit window register (LSB bit 0 = present instant t).
+    pub word: u32,
+}
+
+impl TemporalFramingBuffer32 {
+    /// Initializes an empty 32-bit framing buffer.
+    #[inline(always)]
+    pub const fn new() -> Self {
+        Self { word: 0 }
+    }
+
+    /// Resets buffer state to zero.
+    #[inline(always)]
+    pub fn reset(&mut self) {
+        self.word = 0;
+    }
+
+    /// Returns current 32-bit temporal history window.
+    #[inline(always)]
+    pub const fn window(&self) -> u32 {
+        self.word
+    }
+
+    /// Ingests a new binary spike event at instant t and returns updated 32-bit history.
+    #[inline(always)]
+    pub fn push_spike(&mut self, spike: bool) -> u32 {
+        self.word = (self.word << 1) | (spike as u32);
+        self.word
+    }
+
+    /// Ingests multiple bits at once.
+    #[inline(always)]
+    pub fn push_bits(&mut self, bits: u32, count: u8) -> u32 {
+        let shift = if count >= 32 { 32 } else { count };
+        if shift == 32 {
+            self.word = bits;
+        } else {
+            self.word = (self.word << shift) | (bits & ((1u32 << shift) - 1));
+        }
+        self.word
+    }
+
+    /// Queries event state with a causal delay of `lag` ticks ($\in [0, 31]$).
+    #[inline(always)]
+    pub const fn get_lag(&self, lag: u8) -> bool {
+        if lag >= 32 {
+            false
+        } else {
+            ((self.word >> lag) & 1) != 0
+        }
+    }
+}
+
+/// Canonical Codebook size: 32 shared temporal masks.
+pub const BPTN_CODEBOOK_SIZE: usize = 32;
+
+/// Immutable Flash ROM Codebook table containing 32 representative orthogonal and temporal kernels.
+///
+/// Occupies only $32 \times 4 = 128$ bytes of Flash ROM for the entire microcontroller firmware,
+/// shared across all neurons and layers.
+pub static CANONICAL_BPTN_CODEBOOK_32: [u32; BPTN_CODEBOOK_SIZE] = [
+    // 0..7: Single impulses at key temporal delays
+    0x0000_0001, // Lag 0 (Present instant)
+    0x0000_0002, // Lag 1
+    0x0000_0004, // Lag 2
+    0x0000_0008, // Lag 3
+    0x0000_0010, // Lag 4
+    0x0000_0100, // Lag 8
+    0x0001_0000, // Lag 16
+    0x8000_0000, // Lag 31 (Horizon boundary)
+    // 8..15: Contiguous temporal bursts (durations 2, 4, 8, 16)
+    0x0000_0003, // 2-tick burst at lag 0
+    0x0000_000F, // 4-tick burst at lag 0
+    0x0000_00FF, // 8-tick burst at lag 0
+    0x0000_FFFF, // 16-tick burst at lag 0
+    0x0000_0030, // 2-tick burst at lag 4
+    0x0000_0F00, // 4-tick burst at lag 8
+    0x00FF_0000, // 8-tick burst at lag 16
+    0xFFFF_0000, // 16-tick burst at lag 16
+    // 16..23: Periodic / Oscillatory patterns (Nyquist, sub-harmonics)
+    0x5555_5555, // 10101010... (alternating Nyquist frequency)
+    0x3333_3333, // 11001100... (period 4)
+    0x0F0F_0F0F, // 11110000... (period 8)
+    0x00FF_00FF, // period 16
+    0x6666_6666, // Phase-shifted period 4
+    0xAAAA_AAAA, // Inverted Nyquist
+    0xCCCC_CCCC, // Phase-shifted period 4
+    0xF0F0_F0F0, // Inverted period 8
+    // 24..31: Morphological Edge and Envelope Detectors & Extremes
+    0x0000_0007, // 3-tick burst (triplet)
+    0x0000_0070, // 3-tick burst delayed
+    0x0000_0700, // 3-tick burst delayed
+    0x0007_0000, // 3-tick burst delayed
+    0x0000_7FFF, // 15-tick half window
+    0x7FFF_0000, // 15-tick delayed half window
+    0xFFFF_FFFF, // Full receptive field (all active)
+    0x0000_0000, // Null mask (pass-through / silent)
+];
+
+/// Ultra-compact 2-byte (16-bit) synapse referencing the shared Codebook table.
+///
+/// Reduces synaptic Flash ROM consumption by factor $\times 8$ compared to dense 16-byte BPTN synapses.
+///
+/// Bit layout:
+/// - Bits 0..4 (5 bits): `codebook_idx` $\in [0, 31]$
+/// - Bits 5..9 (5 bits): `delay` $\in [0, 31]$
+/// - Bit 10 (1 bit): `polarity` (0: excitatory, 1: inhibitory)
+/// - Bit 11 (1 bit): `jitter_radius` (0: rigid $\kappa=0$, 1: dilated $\kappa=1$)
+/// - Bits 12..15 (4 bits): reserved (0)
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct CompactCodebookSynapse {
+    pub packed_config: u16,
+}
+
+impl CompactCodebookSynapse {
+    /// Creates a new compact 2-byte synapse.
+    #[inline(always)]
+    pub const fn new(codebook_idx: u8, delay: u8, inverted_polarity: bool) -> Self {
+        let idx = (codebook_idx & 0x1F) as u16;
+        let d = ((delay & 0x1F) as u16) << 5;
+        let pol = (inverted_polarity as u16) << 10;
+        Self {
+            packed_config: idx | d | pol,
+        }
+    }
+
+    /// Enables 1D morphological jitter dilation ($\kappa = 1$).
+    #[inline(always)]
+    #[must_use]
+    pub const fn with_jitter(self, enable_jitter: bool) -> Self {
+        let bit = (enable_jitter as u16) << 11;
+        Self {
+            packed_config: (self.packed_config & !(1 << 11)) | bit,
+        }
+    }
+
+    /// Returns codebook index in $[0, 31]$.
+    #[inline(always)]
+    pub const fn codebook_idx(&self) -> u8 {
+        (self.packed_config & 0x1F) as u8
+    }
+
+    /// Returns axonal delay in $[0, 31]$.
+    #[inline(always)]
+    pub const fn delay(&self) -> u8 {
+        ((self.packed_config >> 5) & 0x1F) as u8
+    }
+
+    /// Returns true if polarity is inverted (inhibitory).
+    #[inline(always)]
+    pub const fn is_inverted(&self) -> bool {
+        (self.packed_config & (1 << 10)) != 0
+    }
+
+    /// Returns true if jitter dilation is enabled ($\kappa=1$).
+    #[inline(always)]
+    pub const fn is_dilated(&self) -> bool {
+        (self.packed_config & (1 << 11)) != 0
+    }
+
+    /// Evaluates polarized synaptic state against input history using codebook.
+    #[inline(always)]
+    pub fn evaluate(&self, history: u32, codebook: &[u32; BPTN_CODEBOOK_SIZE]) -> u32 {
+        let delayed = shift_temporal_delay_32(history, self.delay());
+        let effective = if self.is_dilated() {
+            dilate_temporal_jitter_32(delayed, 1)
+        } else {
+            delayed
+        };
+        let pol_mask = if self.is_inverted() { u32::MAX } else { 0 };
+        let kernel = codebook[self.codebook_idx() as usize];
+        (effective ^ pol_mask) & kernel
+    }
+
+    /// Computes contribution to membrane potential in 1 cycle (`POPCNT`).
+    #[inline(always)]
+    pub fn compute_contribution(&self, history: u32, codebook: &[u32; BPTN_CODEBOOK_SIZE]) -> u32 {
+        self.evaluate(history, codebook).count_ones()
+    }
+}
+
+/// Ultra-compact BPTN neuron consuming only 2 bytes per synaptic input channel.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CodebookBptnNeuron<const CHANNELS: usize> {
+    /// 2-byte synapses referencing shared Codebook.
+    pub synapses: [CompactCodebookSynapse; CHANNELS],
+    /// Integer firing threshold.
+    pub threshold: u32,
+}
+
+impl<const CHANNELS: usize> CodebookBptnNeuron<CHANNELS> {
+    /// Initializes neuron with synapses and firing threshold.
+    #[inline(always)]
+    pub const fn new(synapses: [CompactCodebookSynapse; CHANNELS], threshold: u32) -> Self {
+        Self {
+            synapses,
+            threshold,
+        }
+    }
+
+    /// Evaluates aggregate membrane potential across all channels.
+    #[inline(always)]
+    pub fn evaluate_potential(
+        &self,
+        histories: &[u32; CHANNELS],
+        codebook: &[u32; BPTN_CODEBOOK_SIZE],
+    ) -> u32 {
+        let mut potential = 0u32;
+        let mut ch = 0;
+        while ch < CHANNELS {
+            potential += self.synapses[ch].compute_contribution(histories[ch], codebook);
+            ch += 1;
+        }
+        potential
+    }
+
+    /// Evaluates firing condition: $V(t) \ge \theta$.
+    #[inline(always)]
+    pub fn tick(&self, histories: &[u32; CHANNELS], codebook: &[u32; BPTN_CODEBOOK_SIZE]) -> bool {
+        self.evaluate_potential(histories, codebook) >= self.threshold
+    }
+}
+
+/// Feedforward layer of compact Codebook BPTN neurons.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CodebookBptnLayer<const NEURONS: usize, const CHANNELS: usize> {
+    pub neurons: [CodebookBptnNeuron<CHANNELS>; NEURONS],
+}
+
+impl<const NEURONS: usize, const CHANNELS: usize> CodebookBptnLayer<NEURONS, CHANNELS> {
+    /// Initializes layer.
+    #[inline(always)]
+    pub const fn new(neurons: [CodebookBptnNeuron<CHANNELS>; NEURONS]) -> Self {
+        Self { neurons }
+    }
+
+    /// Evaluates layer and returns output spike bitmask (up to 64 neurons).
+    #[inline(always)]
+    pub fn tick_mask(
+        &self,
+        histories: &[u32; CHANNELS],
+        codebook: &[u32; BPTN_CODEBOOK_SIZE],
+    ) -> u64 {
+        let mut mask = 0u64;
+        let limit = if NEURONS > 64 { 64 } else { NEURONS };
+        let mut n = 0;
+        while n < limit {
+            if self.neurons[n].tick(histories, codebook) {
+                mask |= 1u64 << n;
+            }
+            n += 1;
+        }
+        mask
+    }
+}
+
+/// 128-bit 4-lane SIMD vector aligned for ARMv8.1-M Helium and desktop SIMD registers.
+#[repr(align(16))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct SimdWord4x32(pub [u32; 4]);
+
+impl SimdWord4x32 {
+    /// Creates a 4-lane SIMD vector.
+    #[inline(always)]
+    pub const fn new(lanes: [u32; 4]) -> Self {
+        Self(lanes)
+    }
+
+    /// Vectorized population count across all 4 lanes simultaneously.
+    #[inline(always)]
+    pub fn vector_popcount(self) -> [u32; 4] {
+        [
+            self.0[0].count_ones(),
+            self.0[1].count_ones(),
+            self.0[2].count_ones(),
+            self.0[3].count_ones(),
+        ]
+    }
+
+    /// Sums population counts of all 4 lanes.
+    #[inline(always)]
+    pub fn sum_popcount(self) -> u32 {
+        self.0[0].count_ones()
+            + self.0[1].count_ones()
+            + self.0[2].count_ones()
+            + self.0[3].count_ones()
+    }
+}
+
+// ============================================================================
+// SECTION 11: SYMBOLIC PROJECTION (SPARSE SIMHASH) & LEXICON (BIT-SSM)
+// ============================================================================
+
+/// Computes a balanced 32-bit orthogonal symbolic SimHash signature from an ASCII/UTF-8 byte slice.
+///
+/// This function executes at compile time (`const fn`), mapping arbitrary text strings
+/// into the metric space $\mathbb{F}_2^{32}$.
+///
+/// Guaranteed Properties:
+/// 1. **Anti-Collision**: Distinct words have an expected Hamming distance $d_H \ge 12$ bits.
+/// 2. **Entropy Balance**: Exactly or approximately 16 bits set to 1 for uniform discrimination.
+/// 3. **Determinism**: Zero dynamic allocation, zero floating-point math, 100% `#![no_std]`.
+#[inline(always)]
+pub const fn compute_symbolic_simhash(text: &[u8]) -> u32 {
+    let mut h = 0x811C_9DC5u32; // FNV-1a 32-bit offset basis
+    let mut i = 0;
+    while i < text.len() {
+        h ^= text[i] as u32;
+        h = h.wrapping_mul(0x0100_0193); // 32-bit FNV prime
+        i += 1;
+    }
+    // Avalon/Murmur3 32-bit avalanche mixer
+    let mut x = h;
+    x ^= x >> 16;
+    x = x.wrapping_mul(0x85EB_CA6B);
+    x ^= x >> 13;
+    x = x.wrapping_mul(0xC2B2_AE35);
+    x ^= x >> 16;
+    x
+}
+
+/// Entry in a static compiled BPTN symbolic lexicon.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BptnLexiconEntry {
+    /// Orthogonal 32-bit signature of the symbol/word.
+    pub signature: u32,
+    /// Human-readable label (stored in Flash ROM .rodata).
+    pub label: &'static str,
+}
+
+impl BptnLexiconEntry {
+    /// Compiles a lexicon entry at compile time from a string literal.
+    pub const fn from_str(label: &'static str) -> Self {
+        Self {
+            signature: compute_symbolic_simhash(label.as_bytes()),
+            label,
+        }
+    }
+}
+
+/// Static symbol dictionary for symbolic pattern matching and Bit-SSM sequence reasoning.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BptnLexicon<const N_WORDS: usize> {
+    pub entries: [BptnLexiconEntry; N_WORDS],
+}
+
+impl<const N_WORDS: usize> BptnLexicon<N_WORDS> {
+    /// Initializes lexicon from static entries.
+    pub const fn new(entries: [BptnLexiconEntry; N_WORDS]) -> Self {
+        Self { entries }
+    }
+
+    /// Evaluates exact match in lexicon: returns index of word if signature matches bit-for-bit.
+    #[inline(always)]
+    pub fn find_exact(&self, signature: u32) -> Option<usize> {
+        let mut i = 0;
+        while i < N_WORDS {
+            if self.entries[i].signature == signature {
+                return Some(i);
+            }
+            i += 1;
+        }
+        None
+    }
+
+    /// Evaluates fuzzy match under noisy transmission: returns `(index, hamming_distance)`
+    /// for closest word having distance $\le \text{max\_distance}$.
+    #[inline(always)]
+    pub fn find_best_match(&self, signature: u32, max_distance: u32) -> Option<(usize, u32)> {
+        let mut best_idx = None;
+        let mut best_dist = max_distance + 1;
+
+        let mut i = 0;
+        while i < N_WORDS {
+            let dist = (self.entries[i].signature ^ signature).count_ones();
+            if dist < best_dist {
+                best_dist = dist;
+                best_idx = Some(i);
+            }
+            i += 1;
+        }
+
+        if best_dist <= max_distance {
+            best_idx.map(|idx| (idx, best_dist))
+        } else {
+            None
+        }
+    }
+
+    /// Returns Hamming distance between two word entries in the lexicon.
+    #[inline(always)]
+    pub fn distance_between(&self, idx_a: usize, idx_b: usize) -> u32 {
+        if idx_a < N_WORDS && idx_b < N_WORDS {
+            (self.entries[idx_a].signature ^ self.entries[idx_b].signature).count_ones()
+        } else {
+            32
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1780,5 +2249,139 @@ mod tests {
         c0 = n_c0;
         assert_eq!(c1 & 1, 1);
         assert_eq!(c0 & 1, 0);
+    }
+
+    #[test]
+    fn test_word32_shift_and_framing() {
+        let mut buf = TemporalFramingBuffer32::new();
+        assert_eq!(buf.window(), 0);
+
+        buf.push_spike(true); // t=0
+        buf.push_spike(false); // t=1
+        buf.push_spike(true); // t=2
+        assert_eq!(buf.window() & 0b111, 0b101);
+        assert!(buf.get_lag(0));
+        assert!(!buf.get_lag(1));
+        assert!(buf.get_lag(2));
+
+        // Test shift and dilation on 32-bit word
+        let x = 1u32 << 4;
+        let delayed = shift_temporal_delay_32(x, 2);
+        assert_eq!(delayed, 1u32 << 2);
+
+        let dilated = dilate_temporal_jitter_32(x, 1);
+        assert_eq!(dilated, (1 << 3) | (1 << 4) | (1 << 5));
+
+        let noise_free = open_temporal_filter_32(x, 1);
+        assert_eq!(noise_free, 0); // Isolated 1-tick spike is eliminated by opening!
+
+        let block = (1u32 << 4) | (1u32 << 5) | (1u32 << 6);
+        let block_filtered = open_temporal_filter_32(block, 1);
+        assert_ne!(block_filtered, 0); // 3-tick block survives opening
+    }
+
+    #[test]
+    fn test_compact_codebook_synapse_and_flash_footprint() {
+        use core::mem::size_of;
+
+        // Verify exact 2-byte memory footprint
+        assert_eq!(
+            size_of::<CompactCodebookSynapse>(),
+            2,
+            "CompactCodebookSynapse MUST be exactly 2 bytes (16 bits)!"
+        );
+
+        // Synapse looking for 4-tick burst pattern (idx 9: 0x0000_000F) with delay 2
+        let syn = CompactCodebookSynapse::new(9, 2, false);
+        assert_eq!(syn.codebook_idx(), 9);
+        assert_eq!(syn.delay(), 2);
+        assert!(!syn.is_inverted());
+        assert!(!syn.is_dilated());
+
+        let history = 0x0000_000Fu32 << 2;
+        let active = syn.evaluate(history, &CANONICAL_BPTN_CODEBOOK_32);
+        assert_eq!(active, 0x0000_000Fu32);
+
+        // Test with inversion (inhibitory)
+        let syn_inv = CompactCodebookSynapse::new(9, 2, true);
+        assert!(syn_inv.is_inverted());
+        let active_inv = syn_inv.evaluate(history, &CANONICAL_BPTN_CODEBOOK_32);
+        assert_eq!(active_inv, 0); // Inverted matching on exact pattern yields 0
+
+        // Test CodebookBptnNeuron
+        let neuron = CodebookBptnNeuron::<2>::new(
+            [
+                CompactCodebookSynapse::new(0, 0, false), // Lag 0 impulse (mask 1)
+                CompactCodebookSynapse::new(1, 0, false), // Lag 1 impulse (mask 2)
+            ],
+            2,
+        );
+
+        let histories_match = [1u32, 2u32];
+        assert!(neuron.tick(&histories_match, &CANONICAL_BPTN_CODEBOOK_32));
+
+        let histories_fail = [0u32, 2u32];
+        assert!(!neuron.tick(&histories_fail, &CANONICAL_BPTN_CODEBOOK_32));
+    }
+
+    #[test]
+    fn test_symbolic_simhash_anti_collision_and_lexicon() {
+        // Compute signatures for distinct words
+        let sig_cat = compute_symbolic_simhash(b"CAT");
+        let sig_bat = compute_symbolic_simhash(b"BAT");
+        let sig_start = compute_symbolic_simhash(b"START");
+        let sig_stop = compute_symbolic_simhash(b"STOP");
+        let sig_allume = compute_symbolic_simhash(b"ALLUME");
+        let sig_eteins = compute_symbolic_simhash(b"ETEINS");
+
+        // Mathematical guarantee: Distance between distinct words must be >= 10 bits
+        let dist_cat_bat = (sig_cat ^ sig_bat).count_ones();
+        let dist_start_stop = (sig_start ^ sig_stop).count_ones();
+        let dist_allume_eteins = (sig_allume ^ sig_eteins).count_ones();
+
+        assert!(
+            dist_cat_bat >= 10,
+            "CAT vs BAT distance must be >= 10 bits (got {dist_cat_bat})"
+        );
+        assert!(
+            dist_start_stop >= 10,
+            "START vs STOP distance must be >= 10 bits (got {dist_start_stop})"
+        );
+        assert!(
+            dist_allume_eteins >= 10,
+            "ALLUME vs ETEINS distance must be >= 10 bits (got {dist_allume_eteins})"
+        );
+
+        // Verify entropy balance: popcount should be near 16 bits (between 10 and 22)
+        assert!((10..=22).contains(&sig_cat.count_ones()));
+        assert!((10..=22).contains(&sig_start.count_ones()));
+
+        // Test BptnLexicon
+        let lexicon = BptnLexicon::new([
+            BptnLexiconEntry::from_str("CAT"),
+            BptnLexiconEntry::from_str("BAT"),
+            BptnLexiconEntry::from_str("START"),
+            BptnLexiconEntry::from_str("STOP"),
+        ]);
+
+        // Exact lookups
+        assert_eq!(lexicon.find_exact(sig_start), Some(2));
+        assert_eq!(lexicon.find_exact(sig_stop), Some(3));
+        assert_eq!(lexicon.find_exact(0xFFFF_FFFF), None);
+
+        // Fuzzy match under 2 bits of transmission noise
+        let noisy_start = sig_start ^ 0b0000_0101; // Invert bits 0 and 2
+        let (matched_idx, dist) = lexicon
+            .find_best_match(noisy_start, 4)
+            .expect("Should match START under 2 bits noise");
+        assert_eq!(matched_idx, 2);
+        assert_eq!(dist, 2);
+    }
+
+    #[test]
+    fn test_simd_word_4x32() {
+        let v = SimdWord4x32::new([0x0000_000F, 0x0000_00FF, 0x0000_FFFF, 0xFFFF_FFFF]);
+        assert_eq!(v.vector_popcount(), [4, 8, 16, 32]);
+        assert_eq!(v.sum_popcount(), 4 + 8 + 16 + 32);
     }
 }

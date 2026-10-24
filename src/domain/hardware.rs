@@ -504,6 +504,46 @@ impl FastDivider {
     }
 }
 
+/// Sums four unsigned 8-bit integers packed in a 32-bit register (`USAD8` on ARMv7E-M).
+///
+/// $$\text{res} = \text{val}_{\{7:0\}} + \text{val}_{\{15:8\}} + \text{val}_{\{23:16\}} + \text{val}_{\{31:24\}}$$
+///
+/// - On ARM Cortex-M4/M7/M33 with `feature = "cortex-m-dsp"`, leverages the hardware instruction `USAD8` (1 cycle).
+/// - On other architectures, uses a portable branchless shift-mask sum.
+///
+/// # Example
+/// ```rust
+/// use snn_core::hardware::hardware_usad8_sum4;
+///
+/// let packed = 5u32 | (10u32 << 8) | (15u32 << 16) | (20u32 << 24);
+/// assert_eq!(hardware_usad8_sum4(packed), 50);
+/// ```
+#[inline(always)]
+pub fn hardware_usad8_sum4(packed_bytes: u32) -> u32 {
+    #[cfg(all(feature = "cortex-m-dsp", target_arch = "arm"))]
+    {
+        let res: u32;
+        let zero: u32 = 0;
+        unsafe {
+            core::arch::asm!(
+                "usad8 {out}, {inp}, {z}",
+                out = out(reg) res,
+                inp = in(reg) packed_bytes,
+                z = in(reg) zero,
+                options(nomem, nostack, preserves_flags)
+            );
+        }
+        res
+    }
+    #[cfg(not(all(feature = "cortex-m-dsp", target_arch = "arm")))]
+    {
+        (packed_bytes & 0xFF)
+            + ((packed_bytes >> 8) & 0xFF)
+            + ((packed_bytes >> 16) & 0xFF)
+            + ((packed_bytes >> 24) & 0xFF)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -670,5 +710,18 @@ mod tests {
         assert_eq!(new_v[2], v_reset);
         assert!((new_v[1].to_float() - 0.3).abs() < 0.01);
         assert!((new_v[3].to_float() - 0.4).abs() < 0.01);
+    }
+
+    #[test]
+    #[allow(clippy::decimal_bitwise_operands)]
+    fn test_hardware_usad8_sum4() {
+        let packed = 12u32 | (34u32 << 8) | (56u32 << 16) | (78u32 << 24);
+        assert_eq!(hardware_usad8_sum4(packed), 12 + 34 + 56 + 78);
+
+        let max_packed = 0xFFFF_FFFFu32;
+        assert_eq!(hardware_usad8_sum4(max_packed), 255 * 4);
+
+        let zero_packed = 0u32;
+        assert_eq!(hardware_usad8_sum4(zero_packed), 0);
     }
 }

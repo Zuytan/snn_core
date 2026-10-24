@@ -36,11 +36,15 @@ pub use arena::{
 pub use bitset::SpikeBitset;
 #[cfg(feature = "bptn")]
 pub use bptn::{
-    BPTN_WINDOW_SIZE, BptnBistableCell, BptnFeedforwardLayer, BptnGatedCell, BptnLatchMode,
-    BptnNeuron, BptnSpikingNetwork, BptnSynapse, BptnToggleCell, CompactBptnNeuron,
-    MultiScaleBptnNeuron, MultiScalePyramidBuffer, RBptnLayer, RBptnSpikingNetwork,
-    TemporalFramingBuffer64, dilate_temporal_jitter, shift_temporal_age, shift_temporal_delay,
-    swar_compress_dyadic_u64,
+    BPTN_CODEBOOK_SIZE, BPTN_WINDOW_SIZE, BPTN_WINDOW_SIZE_32, BptnBistableCell,
+    BptnFeedforwardLayer, BptnGatedCell, BptnLatchMode, BptnLexicon, BptnLexiconEntry, BptnNeuron,
+    BptnSpikingNetwork, BptnSynapse, BptnToggleCell, CANONICAL_BPTN_CODEBOOK_32, CodebookBptnLayer,
+    CodebookBptnNeuron, CompactBptnNeuron, CompactCodebookSynapse, MultiScaleBptnNeuron,
+    MultiScalePyramidBuffer, RBptnLayer, RBptnSpikingNetwork, SimdWord4x32,
+    TemporalFramingBuffer32, TemporalFramingBuffer64, Word32, compute_symbolic_simhash,
+    dilate_temporal_jitter, dilate_temporal_jitter_32, erode_temporal_noise,
+    erode_temporal_noise_32, open_temporal_filter, open_temporal_filter_32, shift_temporal_age,
+    shift_temporal_age_32, shift_temporal_delay, shift_temporal_delay_32, swar_compress_dyadic_u64,
 };
 pub use compact_population::{CompactLif16Population, CompactLifPopulation};
 #[cfg(feature = "alloc")]
