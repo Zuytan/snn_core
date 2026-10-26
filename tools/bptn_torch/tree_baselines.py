@@ -153,7 +153,7 @@ def compact(nodes, roots):
     return out, np.array([ref(r) for r in roots], dtype=np.int64)
 
 
-def run(kind, cfg, data, seed):
+def run(kind, cfg, data, seed, hgb_lr=0.1):
     x_tr, y_tr, x_val, y_val, x_te, y_te = data
     t0 = time.time()
     if kind == "rf":
@@ -163,7 +163,7 @@ def run(kind, cfg, data, seed):
         integer = rf_integer
     else:
         iters, depth = cfg
-        model = HistGradientBoostingClassifier(max_iter=iters, max_depth=depth, learning_rate=0.1,
+        model = HistGradientBoostingClassifier(max_iter=iters, max_depth=depth, learning_rate=hgb_lr,
                                                early_stopping=False, random_state=seed)
         model.fit(x_tr, y_tr)
         integer = hgb_integer
@@ -173,7 +173,7 @@ def run(kind, cfg, data, seed):
     n_trees = len(parts[1])
     n_leaves = int((nodes[:, 0] == LEAF).sum())
     res = {
-        "kind": kind, "config": list(cfg), "trees": n_trees,
+        "kind": kind, "config": list(cfg), "trees": n_trees, "hgb_lr": hgb_lr if kind == "hgb" else None,
         "val_acc": float((pred_val == y_val).mean()), "test_acc": float((pred_te == y_te).mean()),
         "nodes_visited_mean": float(visited.mean()), "nodes_visited_max": int(visited.max()),
         "flash_bytes": flash_bytes(kind, nodes, n_trees, n_leaves), "train_s": time.time() - t0,
@@ -222,6 +222,7 @@ def main():
     ap.add_argument("--rf", default="64x8,128x8,256x8,64x12,128x12,256x12,128x16,256x16",
                     help="random-forest configs TREESxDEPTH")
     ap.add_argument("--hgb", default="10x4,25x4,50x4,100x4,25x6,50x6", help="boosting configs ITERxDEPTH")
+    ap.add_argument("--hgb-lr", type=float, default=0.1, help="boosting learning rate")
     ap.add_argument("--export", type=Path, default=None)
     ap.add_argument("--export-config", default=None, help="config to export, e.g. rf:256x12 or hgb:50x4")
     ap.add_argument("--out", type=Path, default=None)
@@ -232,7 +233,7 @@ def main():
     parse = lambda spec: [tuple(int(v) for v in c.split("x")) for c in spec.split(",") if c]
     for kind, spec in (("rf", args.rf), ("hgb", args.hgb)):
         for cfg in parse(spec):
-            res, model, _ = run(kind, cfg, data, args.seed)
+            res, model, _ = run(kind, cfg, data, args.seed, args.hgb_lr)
             results.append(res)
             if args.export and args.export_config == f"{kind}:{cfg[0]}x{cfg[1]}":
                 export(kind, model, data, args.export.expanduser(), {"config": list(cfg), "seed": args.seed})

@@ -38,9 +38,11 @@ KINDS = {
     "bnn": ("bnn_shd_eval", "BNN_MODEL_DIR"),
     "bp": ("bp_shd_eval", "BP_MODEL_DIR"),
     "tree": ("tree_shd_eval", "TREE_MODEL_DIR"),
+    # Needs CMSIS_NN_DIR and CMSIS_CORE_DIR (pass them with --env).
+    "cnn": ("cnn_shd_eval", "CNN_MODEL_DIR"),
 }
 # Optional fields of the CHUNK line (early exit and streaming binaries).
-EXTRA_RE = re.compile(r"\b(rounds_sum|ticks|updated_sum|counts_ok)=(\d+)")
+EXTRA_RE = re.compile(r"\b(rounds_sum|ticks|updated_sum|counts_ok|unpack_sum)=(\d+)")
 CHUNK_RE = re.compile(
     r"CHUNK start=(\d+) samples=(\d+) correct=(\d+) host_agree=(\d+) cycles_min=(\d+) "
     r"cycles_mean=([\d.]+) cycles_max=(\d+) us_mean=([\d.]+) clock_hz=(\d+)"
@@ -121,6 +123,8 @@ def main():
     }
     if all("rounds_sum" in c for c in chunks):
         summary["rounds_mean"] = sum(c["rounds_sum"] for c in chunks) / total
+    if all("unpack_sum" in c for c in chunks):
+        summary["unpack_cycles_mean"] = sum(c["unpack_sum"] for c in chunks) / total
     if all("ticks" in c for c in chunks):
         # Streaming: cycles are per tick; also report the LUTs recomputed per tick and the checks.
         ticks = sum(c["ticks"] for c in chunks)

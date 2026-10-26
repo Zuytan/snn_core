@@ -19,6 +19,10 @@ features = ["cortex-m-dsp"]
 [dependencies.snn_core_bptn]
 path = "../../crates/snn_core_bptn"
 
+# Compiles CMSIS-NN for `bin/cnn_shd_eval.rs` when CMSIS_NN_DIR is set (see build.rs).
+[build-dependencies]
+cc = "1.2"
+
 # Standalone package (excluded from the root workspace): it targets another architecture.
 [workspace]
 

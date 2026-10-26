@@ -1,0 +1,11 @@
+micro   (4, 16, 16, 16, 2, 1): test float 53.58%, int8 53.89% (val int8 55.2%), 17,088 MACs, weights 4.8 KB
+  exported to /Users/zuytan/.cache/snn_core/cnn_export_micro
+tiny    (8, 8, 8, 16, 3, 1): test float 67.23%, int8 67.23% (val int8 67.9%), 35,392 MACs, weights 5.0 KB
+  exported to /Users/zuytan/.cache/snn_core/cnn_export_tiny
+small   (16, 8, 4, 32, 3, 2): test float 69.35%, int8 69.26% (val int8 76.4%), 134,272 MACs, weights 10.8 KB
+  exported to /Users/zuytan/.cache/snn_core/cnn_export_small
+medium  (32, 8, 4, 64, 3, 2): test float 70.72%, int8 70.85% (val int8 78.5%), 290,048 MACs, weights 24.5 KB
+  exported to /Users/zuytan/.cache/snn_core/cnn_export_medium
+large   (64, 8, 2, 64, 3, 2): test float 74.51%, int8 74.56% (val int8 82.9%), 1,123,584 MACs, weights 46.8 KB
+  exported to /Users/zuytan/.cache/snn_core/cnn_export_large
+Written to tools/bptn_torch/results/cnn_int8_seed0.json
