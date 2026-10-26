@@ -5,7 +5,7 @@
 //!
 //! Execution:
 //! ```bash
-//! cargo run --example 03_izhikevich_regimes -p snn_core
+//! cargo run -p snn_core_demos --example 03_izhikevich_regimes
 //! ```
 
 use snn_core::Fix32;

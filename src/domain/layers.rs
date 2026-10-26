@@ -4,6 +4,9 @@
 //! and propagating spikes inter-layer **within the same time step $t$**
 //! via the ultra-compact [`SpikeBitset`] format (zero layer parasite latency, zero allocation).
 
+// The deprecated legacy wrappers below are still implemented and tested here until they are removed.
+#![allow(deprecated)]
+
 use crate::domain::bitset::SpikeBitset;
 use crate::domain::delay_ring::StaticSpikeWordDelayLine;
 use crate::domain::hardware::FastDivider;
@@ -468,7 +471,13 @@ impl<Head: SpikingLayer<T>, Tail: SpikingLayer<T>, T: NumericScalar> SpikingLaye
 
 /// Modular deep SNN composed of an arbitrary chain of [`LayerChain`] layers.
 /// Implements the [`SpikingNetwork`] trait.
+///
+/// Deprecated: [`ModelDescriptor`](crate::ModelDescriptor) is the single documented inference API.
 #[derive(Clone, Copy, Debug)]
+#[deprecated(
+    since = "0.5.0",
+    note = "use `ModelDescriptor` + `ExecutionContext` (domain::engine): one inference path, no generics, SRAM buffer sized by `MemoryFootprint`"
+)]
 pub struct ChainedSpikingNetwork<
     Chain: SpikingLayer<T>,
     const OUT_N: usize,

@@ -231,9 +231,41 @@ int32_t snn_readout_dense(
  * @brief Layer type within a multilayer spiking neural network.
  */
 typedef enum {
-    SNN_LAYER_FEEDFORWARD   = 0, /**< Standard Fix32 CSR feedforward layer */
-    SNN_LAYER_QUANTIZED_INT8 = 1  /**< Quantized INT8 weights with Fix32 common scale */
+    SNN_LAYER_FEEDFORWARD    = 0, /**< Standard Fix32 CSR feedforward layer */
+    SNN_LAYER_QUANTIZED_INT8 = 1, /**< Quantized INT8 weights with Fix32 common scale */
+    SNN_LAYER_CONV2D         = 2, /**< Event-driven 2D convolution */
+    SNN_LAYER_MAX_POOL_2D    = 3  /**< Spatial max-pooling (bitwise OR) */
 } SnnLayerType;
+
+/** @brief 2D convolution layer descriptor (kernel weights in Q16.16, in Flash ROM). */
+typedef struct {
+    const int32_t* kernel;
+    size_t in_channels;
+    size_t out_channels;
+    size_t kernel_h;
+    size_t kernel_w;
+    size_t stride_h;
+    size_t stride_w;
+    size_t padding_h;
+    size_t padding_w;
+    size_t in_h;
+    size_t in_w;
+    size_t out_h;
+    size_t out_w;
+} SnnConv2dDesc;
+
+/** @brief Spatial 2D max-pooling descriptor. */
+typedef struct {
+    size_t channels;
+    size_t in_h;
+    size_t in_w;
+    size_t kernel_h;
+    size_t kernel_w;
+    size_t stride_h;
+    size_t stride_w;
+    size_t out_h;
+    size_t out_w;
+} SnnMaxPool2dDesc;
 
 /**
  * @brief Descriptor of a single layer within a deep spiking network.
@@ -244,6 +276,9 @@ typedef struct {
     size_t num_neurons;          /**< Number of neurons in this layer */
     SnnLifConfig config;         /**< Biophysical LIF dynamics configuration */
     SnnCsrMatrix synapses;       /**< Sparse synaptic connectivity matrix in Flash ROM */
+    SnnConv2dDesc conv2d;        /**< Used when layer_type == SNN_LAYER_CONV2D */
+    SnnMaxPool2dDesc pool2d;     /**< Used when layer_type == SNN_LAYER_MAX_POOL_2D */
+    const SnnCsrMatrix* recurrent_synapses; /**< Optional recurrent CSR synapses (NULL if none) */
     const int32_t* bias;         /**< Optional bias vector in Q16.16 (NULL if none) */
     int32_t quant_scale;         /**< Fix32 common scale factor (if QuantizedInt8) */
 } SnnLayerDesc;
@@ -266,9 +301,11 @@ typedef struct {
     int32_t* arena_accumulators;  /**< Shared synaptic accumulator buffer (size max_neurons) */
     uint32_t* ping_words;         /**< Ping spike bitset buffer (size max_words) */
     uint32_t* pong_words;         /**< Pong spike bitset buffer (size max_words) */
+    uint32_t* recurrent_spikes;   /**< Previous-step spikes of recurrent layers */
     size_t total_neurons;         /**< Total persistent neurons across all layers */
     size_t max_neurons;           /**< Largest single layer neuron count */
     size_t max_words;             /**< Largest single layer word count */
+    size_t total_recurrent_words; /**< Total words of recurrent_spikes */
 } SnnDeepNetworkState;
 
 /**
@@ -461,6 +498,76 @@ int32_t snn_readout_predict_spikes_mask(
     size_t num_features,
     size_t num_classes
 );
+
+/** @brief Fix32 (Q16.16) saturating multiplication, bit-exact with the Rust runtime. */
+int32_t snn_fix32_mul(int32_t a, int32_t b);
+/** @brief Saturating 32-bit addition. */
+int32_t snn_saturating_add_i32(int32_t a, int32_t b);
+/** @brief Saturating 32-bit subtraction. */
+int32_t snn_saturating_sub_i32(int32_t a, int32_t b);
+/** @brief Pade (2,2) approximation of exp(-x); input and output in Q16.16. */
+int32_t snn_pade_exp_neg(int32_t x_q16);
+
+/** @brief Temporal morphological erosion of a 64-tick spike history. */
+uint64_t snn_bptn_erode_64(uint64_t x, uint8_t kappa);
+/** @brief Temporal morphological opening (erosion then dilation) of a 64-tick spike history. */
+uint64_t snn_bptn_open_filter_64(uint64_t x, uint8_t kappa);
+/** @brief SWAR 8x8 majority pooling, one output bit per byte lane. */
+uint8_t snn_bptn_majority_pool_8x8(uint64_t x, uint8_t threshold);
+/** @brief 64-lane parallel Smith counter step; writes next (c1, c0) planes. */
+void snn_bptn_parallel_smith_step_u64(
+    uint64_t c1, uint64_t c0, uint64_t inc, uint64_t dec, uint64_t* out_c1, uint64_t* out_c0
+);
+/** @brief 2-bit hysteresis latch step (state 0..3, active when >= 2). */
+bool snn_bptn_hysteresis_step(uint8_t* state, bool set, bool reset);
+/** @brief Robust toggle step: a trigger must hold 2 consecutive ticks to flip the state. */
+bool snn_bptn_robust_toggle_step(uint64_t* history, bool* prev_trigger, bool trigger);
+
+/**
+ * @brief Validates a versioned model blob (.snnb) and builds a deep-network descriptor pointing into it.
+ *
+ * The blob must be 4-byte aligned, little-endian host, and stay valid and unmodified while the
+ * descriptor is used. Supports Fix32 and INT8 CSR layers.
+ *
+ * @return 0 on success; a positive error code when the blob is refused
+ *         (1 too short, 2 bad magic, 3 unsupported major version, 4 unknown flags, 5 length mismatch,
+ *          6 CRC mismatch, 7 misaligned blob, 8 big-endian host, 9 bad layout, 10 unknown layer kind,
+ *          11 bad table offset, 12 invalid structure, 13 not enough layer slots); -1 on null arguments.
+ */
+int32_t snn_blob_load(
+    const uint8_t* blob,
+    size_t blob_len,
+    SnnLayerDesc* out_layers,
+    size_t capacity,
+    size_t* out_num_layers,
+    SnnDeepNetworkDesc* out_desc
+);
+
+/* ---- Model-level aliases (same semantics as the snn_deep_network_* functions) ---- */
+
+/** @brief Alias of snn_deep_network_state_size(). */
+size_t snn_model_memory_footprint(const SnnDeepNetworkDesc* desc);
+
+/** @brief Alias of snn_deep_network_init_state(). */
+int32_t snn_model_init_context(
+    const SnnDeepNetworkDesc* desc,
+    uint8_t* arena,
+    size_t arena_size,
+    SnnDeepNetworkState* out_context
+);
+
+/** @brief Alias of snn_deep_network_step(). */
+int32_t snn_model_step(
+    const SnnDeepNetworkDesc* desc,
+    SnnDeepNetworkState* context,
+    const int32_t* inputs,
+    size_t inputs_len,
+    uint32_t* out_spikes_words,
+    size_t words_count
+);
+
+/** @brief Alias of snn_deep_network_reset(). */
+int32_t snn_model_reset(const SnnDeepNetworkDesc* desc, SnnDeepNetworkState* context);
 
 #ifdef __cplusplus
 }

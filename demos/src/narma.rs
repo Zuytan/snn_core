@@ -8,7 +8,7 @@
 //! Standard NARMA-10 equation:
 //! $$y[t+1] = 0.3 y[t] + 0.05 y[t] \left(\sum_{i=0}^9 y[t-i]\right) + 1.5 u[t-9] u[t] + 0.1$$
 
-use crate::domain::numeric::Fix32;
+use snn_core::Fix32;
 
 /// Generator and simulator for the NARMA-10 chaotic nonlinear time series.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

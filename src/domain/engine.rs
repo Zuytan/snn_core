@@ -250,6 +250,24 @@ pub struct LayerDescriptor<'a> {
     pub pool_config: Option<MaxPool2dConfig>,
 }
 
+impl LayerDescriptor<'static> {
+    /// Placeholder layer (no synapses) used to initialise the scratch array that
+    /// [`ModelBlob::load_layers`](crate::domain::blob::ModelBlob::load_layers) fills.
+    pub const EMPTY: Self = Self {
+        in_features: 0,
+        out_features: 0,
+        synapses: SynapseMatrixKind::Fix32(RomCsrSynapses::new(&[0u16], &[], &[])),
+        recurrent_synapses: None,
+        lif_config: LifConfig::new(Fix32::ZERO, Fix32::ZERO, Fix32::ZERO, 0),
+        bias: None,
+        source_layer: None,
+        residual_source: None,
+        residual_weight: None,
+        activation_word_offset: None,
+        pool_config: None,
+    };
+}
+
 impl<'a> LayerDescriptor<'a> {
     /// Creates a Dense layer with Fix32 CSR synapses.
     pub const fn new(
@@ -431,6 +449,33 @@ pub struct MemoryFootprint {
     pub total_sram_bytes: usize,
 }
 
+/// SRAM buffer with the 4-byte alignment that [`ModelDescriptor::init_context`] requires.
+///
+/// Declare it as a `static mut` or a stack variable sized with
+/// [`ModelDescriptor::sram_bytes`] (or any upper bound of it); a plain `[u8; N]` has alignment 1
+/// and is rejected with [`EngineError::MisalignedBuffer`] when its address is not a multiple of 4.
+#[repr(align(4))]
+#[derive(Clone, Copy, Debug)]
+pub struct AlignedBuffer<const N: usize>([u8; N]);
+
+impl<const N: usize> AlignedBuffer<N> {
+    /// Zero-filled buffer.
+    pub const fn new() -> Self {
+        Self([0u8; N])
+    }
+
+    /// The bytes to pass to [`ModelDescriptor::init_context`].
+    pub fn as_mut_bytes(&mut self) -> &mut [u8] {
+        &mut self.0
+    }
+}
+
+impl<const N: usize> Default for AlignedBuffer<N> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Complete static descriptor of a deep SNN in Flash ROM (`.rodata`).
 #[derive(Clone, Copy, Debug)]
 pub struct ModelDescriptor<'a> {
@@ -545,6 +590,12 @@ impl<'a> ModelDescriptor<'a> {
         }
     }
 
+    /// Bytes of SRAM the model needs for its dynamic state (`const`, usable to size a buffer).
+    #[inline(always)]
+    pub const fn sram_bytes(&self) -> usize {
+        self.memory_footprint.total_sram_bytes
+    }
+
     /// Number of input features of the first layer.
     #[inline(always)]
     pub fn input_features(&self) -> usize {
@@ -591,6 +642,10 @@ impl<'a> ModelDescriptor<'a> {
         let (refr_slice, rec_slice) =
             rest3.split_at_mut((total_n * core::mem::size_of::<u8>() + 3) & !3);
 
+        // SAFETY (the four casts below): `sram_buffer` was checked 4-byte aligned (`MisalignedBuffer`) and
+        // large enough for `memory_footprint`; each sub-slice starts at a multiple of 4 bytes (all preceding
+        // sizes are multiples of 4, the refractory part is rounded up to 4), has exactly `len * size_of::<T>()`
+        // bytes, and the slices are disjoint (`split_at_mut`). `Fix32`/`u32` have no invalid bit patterns.
         let accumulators: &mut [Fix32] = unsafe {
             core::slice::from_raw_parts_mut(acc_slice.as_mut_ptr().cast::<Fix32>(), max_n)
         };
@@ -712,6 +767,9 @@ impl<'a> ModelDescriptor<'a> {
                     let in_words = &second[..in_words_count];
                     pool_cfg.pool_spikes_words(in_words, out_target);
                 } else {
+                    // SAFETY: `accumulators` is 4-byte aligned with `max_n` (>= any layer's word count)
+                    // `Fix32` (4 bytes) elements, so reinterpreting its head as `u32` words is in-bounds
+                    // and aligned; it is a different field from `activation_arena`, so no aliasing.
                     let temp_in: &mut [u32] = unsafe {
                         core::slice::from_raw_parts_mut(
                             ctx.accumulators.as_mut_ptr().cast::<u32>(),

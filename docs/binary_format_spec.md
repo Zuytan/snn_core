@@ -81,3 +81,54 @@ Every binary Flash ROM CSR table must satisfy the following invariants to ensure
    $$(\text{arena\_ptr} \pmod 4) = 0$$
 
 The `snn_compiler` AOT toolchain formally verifies these 4 invariants during the code generation pass.
+
+---
+
+## 📦 4. Versioned model container (`.snnb`, format 1.0)
+
+The tables of section 1 can also be shipped as one file (OTA update, external Flash). The reader is
+`snn_core::domain::blob::ModelBlob` (Rust) and `snn_blob_load` (C); the writers are
+`snn_core::domain::blob::encode_model` (Rust, `alloc`) and `snn_compiler.blob` (Python, `--target blob`).
+All integers are little-endian.
+
+```text
+offset  size  field
+0       4     magic            "SNNB"
+4       2     version_major    1
+6       2     version_minor    0
+8       4     flags            0 (any bit set => refused)
+12      4     total_len        bytes in the whole file, CRC included
+16      4     num_layers       >= 1
+20      4     header_len       32
+24      4     record_len       64
+28      4     reserved         0
+header_len + i * record_len     layer record i
+...           data tables, each starting on a 4-byte boundary
+total_len-4   4     crc32      IEEE CRC-32 of every byte before it
+```
+
+Layer record (16 x u32): `kind` (0 = CSR Fix32, 1 = CSR INT8), `in_features`, `out_features`, `nnz`,
+`threshold`, `decay_factor`, `reset_potential`, `tonic_bias` (Q16.16 as i32), `refractory_period`,
+`reset_mode` (0 hard, 1 subtract), `quant_scale` (Q16.16, INT8 only, else 0), `bias_off` (0 = none),
+`row_ptrs_off`, `targets_off`, `weights_off`, reserved (0). Tables: `row_ptrs` u16[in+1], `targets`
+u16[nnz], weights i32[nnz] (kind 0) or i8[nnz] (kind 1), `bias` i32[out]. Offsets are in bytes from the
+start of the file.
+
+**Compatibility.** A reader accepts any `version_minor` of its own `version_major`. Minor versions may
+only append fields to the header and to records (readers step by `header_len` / `record_len`) or add
+optional tables. A change old readers must not ignore sets a `flags` bit or increments `version_major`;
+those files are refused, never partially read.
+
+**What a reader checks before returning anything:** magic, major version, flags, length, CRC-32, 4-byte
+alignment of the file, layout sizes, known layer kinds, every table inside the file and aligned, the
+invariants of section 3 (including `row_ptrs[0] = 0`), `u16` limits, and `in_features` of each layer equal
+to `out_features` of the previous one. The tables are then used in place (no copy), which requires a
+little-endian host (big-endian hosts are refused). Format 1.0 carries feed-forward CSR layers only; no
+convolution, pooling or recurrent synapses.
+
+Error codes of `snn_blob_load`: 1 too short, 2 bad magic, 3 unsupported major version, 4 unknown flags,
+5 length mismatch, 6 CRC mismatch, 7 misaligned file, 8 big-endian host, 9 bad layout, 10 unknown layer
+kind, 11 bad table offset, 12 invalid structure, 13 not enough layer slots; -1 for null arguments.
+
+Compatibility is tested with a golden file (`tests/data/model_v1.snnb`) that the Rust and Python
+encoders must both reproduce byte for byte.

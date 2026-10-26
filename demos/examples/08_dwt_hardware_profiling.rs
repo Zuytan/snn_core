@@ -5,7 +5,7 @@
 //!
 //! Execution:
 //! ```bash
-//! cargo run --example 08_dwt_hardware_profiling -p snn_core
+//! cargo run -p snn_core_demos --example 08_dwt_hardware_profiling
 //! ```
 
 use snn_core::domain::compact_population::CompactLifPopulation;

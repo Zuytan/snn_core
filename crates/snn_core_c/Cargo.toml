@@ -3,12 +3,58 @@ name = "snn_core_c"
 version = "0.4.0"
 edition = "2024"
 authors = ["Zuytan"]
-description = "C ABI dynamic and static library bindings for snn_core."
-license = "PolyForm-Noncommercial-1.0.0"
+description = "C ABI static and dynamic library for snn_core (libsnn_core.a)."
+license = "MIT"
+repository = "https://github.com/Zuytan/snn_core"
+publish = false
+
+# Standalone package (excluded from the root workspace): its library is named `snn_core`
+# so that C projects link `-lsnn_core`. The Rust runtime is imported under the name `runtime`
+# to avoid a clash with this library's own name.
+[workspace]
+
+[profile.release]
+panic = "abort"
+lto = true
+opt-level = "s"
 
 [lib]
 name = "snn_core"
-crate-type = ["staticlib", "cdylib"]
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[features]
+default = ["bptn"]
+bptn = ["dep:snn_core_bptn"]
+cortex-m-dsp = ["runtime/cortex-m-dsp"]
+cortex-m-helium = ["runtime/cortex-m-helium"]
+cortex-m0 = ["runtime/cortex-m0"]
+riscv-dsp = ["runtime/riscv-dsp"]
 
 [dependencies]
-snn_core = { path = "../..", default-features = false }
+runtime = { package = "snn_core", path = "../..", default-features = false }
+snn_core_bptn = { path = "../snn_core_bptn", optional = true }
+
+[lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_feature, values("mve"))'] }
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+cast_possible_truncation = "allow"
+cast_precision_loss = "allow"
+cast_sign_loss = "allow"
+cast_possible_wrap = "allow"
+cast_lossless = "allow"
+similar_names = "allow"
+too_many_lines = "allow"
+inline_always = "allow"
+unreadable_literal = "allow"
+many_single_char_names = "allow"
+doc_markdown = "allow"
+items_after_statements = "allow"
+uninlined_format_args = "allow"
+missing_panics_doc = "allow"
+missing_errors_doc = "allow"
+

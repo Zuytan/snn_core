@@ -11,7 +11,7 @@
 //!
 //! Execution:
 //! ```bash
-//! cargo run --release --features bptn --example 13_bptn_command_lexicon_engine
+//! cargo run -p snn_core_demos --release --example 13_bptn_command_lexicon_engine
 //! ```
 
 #![allow(
@@ -21,7 +21,7 @@
     clippy::cast_sign_loss
 )]
 
-use snn_core::bptn::{
+use snn_core_bptn::{
     BptnLexicon, BptnLexiconEntry, CANONICAL_BPTN_CODEBOOK_32, CodebookBptnLayer,
     CodebookBptnNeuron, CompactCodebookSynapse, compute_symbolic_simhash,
 };

@@ -43,7 +43,7 @@ def generate_c99_header(name_prefix: str, kernels_u64, polarities_u64, threshold
         f"#ifndef {guard}",
         f"#define {guard}",
         "",
-        '#include "snn_core_c99.h"',
+        '#include "snn_core.h"',
         "",
         f"#define {prefix}_CHANNELS  ({m_channels}U)",
         f"#define {prefix}_NEURONS   ({n_neurons}U)",
@@ -83,7 +83,7 @@ def generate_c99_header(name_prefix: str, kernels_u64, polarities_u64, threshold
     lines.append(f" * @param histories Array of {m_channels} uint64_t integers (1 register per channel)")
     lines.append(" * @return 64-bit spike mask (1 bit per output neuron)")
     lines.append(" */")
-    lines.append(f"SNN_INLINE uint64_t {name_prefix.lower()}_step(const uint64_t* histories) {{")
+    lines.append(f"static inline uint64_t {name_prefix.lower()}_step(const uint64_t* histories) {{")
     lines.append("    uint64_t out_mask = 0;")
     lines.append(f"    snn_bptn_layer_eval(histories, {prefix}_CHANNELS, {prefix}_KERNELS, {prefix}_POLARITIES, {prefix}_THRESHOLDS, {prefix}_NEURONS, &out_mask);")
     lines.append("    return out_mask;")
@@ -94,7 +94,7 @@ def generate_c99_header(name_prefix: str, kernels_u64, polarities_u64, threshold
         lines.append("/**")
         lines.append(" * @brief Evaluates the complete model and predicts the winning class via CTZ decoding.")
         lines.append(" */")
-        lines.append(f"SNN_INLINE int32_t {name_prefix.lower()}_predict(const uint64_t* histories) {{")
+        lines.append(f"static inline int32_t {name_prefix.lower()}_predict(const uint64_t* histories) {{")
         lines.append(f"    uint64_t spikes = {name_prefix.lower()}_step(histories);")
         lines.append(f"    return snn_readout_predict_spikes_mask({prefix}_READOUT_WEIGHTS, {bias_ref}, spikes, {prefix}_NEURONS, {prefix}_CLASSES);")
         lines.append("}\n")

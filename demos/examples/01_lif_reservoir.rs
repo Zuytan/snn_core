@@ -5,7 +5,7 @@
 //!
 //! Execution:
 //! ```bash
-//! cargo run --example 01_lif_reservoir -p snn_core
+//! cargo run -p snn_core_demos --example 01_lif_reservoir
 //! ```
 
 use snn_core::domain::network::Network;

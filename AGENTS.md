@@ -40,41 +40,26 @@ This document defines the architectural standards, performance mandates, and sof
 ## 📂 Codebase Layout
 
 ```text
-snn_core/
-├── Cargo.toml                  # Dependencies & strict pedantic Clippy configuration
-├── src/
-│   ├── lib.rs                  # Library entry point (#![no_std])
-│   ├── traits.rs               # Abstraction traits (SpikingPopulation, SynapseMatrix, SpikingNetwork)
-│   ├── application/
-│   │   ├── can_parser.rs       # Deterministic automotive CAN frame stream parser
-│   │   ├── ffi.rs              # C-compatible FFI bindings for dynamic/static embedding
-│   │   ├── nir_import.rs       # AOT import and Padé rational approximation for NIR models
-│   │   ├── readout.rs          # Dense decoders and trainable classification/regression readouts
-│   │   └── simulator.rs        # Discrete-time simulation orchestrator
-│   └── domain/
-│       ├── aer.rs              # Address-Event Representation (AER) DMA ring buffer
-│       ├── arena.rs            # ActivationArena: zero-alloc ping-pong memory planner
-│       ├── bitset.rs           # SpikeBitset: 1 bit/neuron vectorized spike bus
-│       ├── bptn.rs             # Bit-Parallel Temporal Networks (R-BPTN, H-BPTN, bistable latches)
-│       ├── compact_population.rs # Ultra-compact neuron populations (5B/9B per neuron)
-│       ├── delay_ring.rs       # Allocation-free circular spike delay lines
-│       ├── encoding.rs         # Temporal encoders (Rate, Latency, Delta-Modulation)
-│       ├── engine.rs           # Unified ModelDescriptor & ExecutionContext engine
-│       ├── hardware.rs         # DSP intrinsics (smlad, ssat, Helium, FastDivider)
-│       ├── layers.rs           # Modular layers (Conv1d, Conv2d, MaxPool2d, Recurrent, Residual)
-│       ├── lazy_population.rs  # Lazy decay engine (O(1) per spike event)
-│       ├── metrics.rs          # NeuroBench metrics (SynOps, Sparsity, CMOS energy)
-│       ├── models/             # Biophysical models (LIF, Cuba-LIF, ALIF, Izhikevich)
-│       ├── numeric.rs          # Fix32 (Q16.16) and Fix16 (Q8.8) saturating types
-│       ├── rom_csr.rs          # Flash ROM CSR sparse synapses (Fix32, quantized INT8)
-│       └── stdp.rs             # STDP and R-STDP plasticity with CSC indexing
-├── tests/                      # Integration, conformance, fuzzing, and adversarial test suites
-├── benches/                    # Criterion performance benchmarks
-├── examples/                   # 12 executable engineering demonstrator benchmarks
-├── include/                    # snn_core_c99.h standalone header and C FFI headers
-├── tools/                      # CLI compilers (snn-compile, NIR/ONNX converters, silicon runners)
-└── docs/                       # Formal specs, whitepapers, and hardware reports
+snn_core/                       # workspace root = the runtime package `snn_core`
+├── Cargo.toml                  # runtime manifest + [workspace] + shared pedantic Clippy lints
+├── src/                        # RUNTIME (no_std, no dependencies, no heap on the inference path)
+│   ├── lib.rs, traits.rs
+│   ├── application/            # nir_import, readout, simulator, time
+│   └── domain/                 # numeric, hardware, bitset, models/, rom_csr, static_csr, delay_ring,
+│                               # layers, arena, engine (ModelDescriptor/ExecutionContext),
+│                               # compact/lazy populations, static networks, stdp, metrics, aer, encoding
+├── tests/                      # runtime integration tests (aot, nir conformance, traits)
+├── crates/
+│   ├── snn_core_bptn/          # experimental BPTN engine + adversarial tests (workspace member)
+│   └── snn_core_c/             # C ABI library libsnn_core.a / .so + FFI fuzz tests (standalone package)
+├── demos/                      # examples, Criterion benches, CAN parser, NARMA-10 (workspace member)
+├── examples/wio_e5_benchmark/  # on-board firmware (standalone package, ARM target)
+├── include/                    # snn_core.h, the C header of the FFI library (kept in sync with Rust by a test)
+├── tools/                      # snn-compile (NIR/ONNX), codegen, silicon runners
+└── docs/                       # specs and reports (the CLAIMS.md register is in the repo root)
 ```
+
+Rule: anything not needed to run inference on a microcontroller does not go in the runtime package.
 
 ---
 
@@ -83,12 +68,14 @@ snn_core/
 Before committing or releasing any code:
 ```bash
 # 1. Strict Clippy verification across all targets and features
-cargo clippy --all-targets --all-features -- -D warnings
-cargo clippy --all-targets --no-default-features -- -D warnings
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo clippy -p snn_core --all-targets --no-default-features -- -D warnings
+(cd crates/snn_core_c && cargo clippy --all-targets -- -D warnings)
 
 # 2. Complete unit and integration test suite execution
-cargo test
+cargo test --workspace
+(cd crates/snn_core_c && cargo test)
 
 # 3. Bare-metal cross-compilation without std (ARM Cortex-M4 without FPU)
-cargo check --target thumbv7em-none-eabi --no-default-features
+cargo check -p snn_core --target thumbv7em-none-eabi --no-default-features
 ```

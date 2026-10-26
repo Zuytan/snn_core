@@ -5,7 +5,7 @@
 //!
 //! Execution:
 //! ```bash
-//! cargo run --example 04_static_embedded_pipeline -p snn_core
+//! cargo run -p snn_core_demos --example 04_static_embedded_pipeline
 //! ```
 
 use snn_core::traits::{Readout, SpikingNetwork};

@@ -1,0 +1,28 @@
+[package]
+name = "snn_core_demos"
+version = "0.4.0"
+edition = "2024"
+authors = ["Zuytan"]
+description = "Examples, benchmarks and application-level helpers (CAN parser, NARMA-10) for snn_core. Not part of the runtime."
+license = "MIT"
+repository = "https://github.com/Zuytan/snn_core"
+publish = false
+
+[dependencies]
+snn_core = { path = "..", features = ["alloc"] }
+snn_core_bptn = { path = "../crates/snn_core_bptn" }
+
+[features]
+cortex-m-dsp = ["snn_core/cortex-m-dsp"]
+
+[dev-dependencies]
+criterion = "0.5"
+fastrand = { version = "2.3.0", default-features = false }
+nalgebra = { version = "0.33.2" }
+
+[[bench]]
+name = "network_benchmark"
+harness = false
+
+[lints]
+workspace = true

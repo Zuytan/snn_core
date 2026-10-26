@@ -9,8 +9,11 @@
 //!
 //! Execution:
 //! ```bash
-//! cargo run --example 07_nir_aot_codegen -p snn_core
+//! cargo run -p snn_core_demos --example 07_nir_aot_codegen
 //! ```
+
+// Step 4 below checks `ModelDescriptor` against the deprecated `ChainedSpikingNetwork` reference path.
+#![allow(deprecated)]
 
 use snn_core::application::nir_import::{
     NirAffineNode, NirLifNode, NirLinearNode, emit_rust_static_csr,

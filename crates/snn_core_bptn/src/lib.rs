@@ -5,8 +5,8 @@
 //! ultra-short temporal triggers (*short-horizon triggers* $W \le 64$ ticks) on microcontrollers
 //! lacking FPU (Wake-Word Detection, Keyword Spotting KWS, coincidence and edge detection).
 //! For long temporal horizons, continuous neuromorphic vision, or online learning,
-//! the biophysical neuron populations of `snn_core` ([`crate::domain::models::lif::LifDynamics`], [`crate::domain::models::alif::AlifDynamics`], [`crate::domain::models::cuba_lif::CubaLifDynamics`],
-//! [`crate::domain::compact_population::CompactLif16Population`]) remain the standard industrial benchmark.
+//! the biophysical neuron populations of `snn_core` ([`snn_core::models::lif::LifDynamics`], [`snn_core::models::alif::AlifDynamics`], [`snn_core::models::cuba_lif::CubaLifDynamics`],
+//! [`snn_core::CompactLif16Population`]) remain the standard industrial benchmark.
 //!
 //! Designed for conventional digital processor architectures (Word-RAM):
 //! - Machine word width $W = 64$ bits (`u64`) representing local temporal history.
@@ -16,8 +16,8 @@
 //! - Membrane integration via hardware bit counting (`POPCNT` in 1 cycle).
 //! - 100% branchless execution, zero dynamic allocation (`no_std`).
 
-use crate::domain::numeric::Fix32;
-use crate::traits::SpikingNetwork;
+use snn_core::Fix32;
+use snn_core::SpikingNetwork;
 
 /// Standard machine temporal window width (64 bits).
 pub const BPTN_WINDOW_SIZE: usize = 64;
@@ -572,7 +572,7 @@ impl<const N: usize, const M_EXT: usize, const M_TOTAL: usize> SpikingNetwork<Fi
 ///
 /// # Example
 /// ```rust
-/// use snn_core::bptn::TemporalFramingBuffer64;
+/// use snn_core_bptn::TemporalFramingBuffer64;
 ///
 /// let mut buf = TemporalFramingBuffer64::new();
 /// buf.push_spike(true);
@@ -648,7 +648,7 @@ pub enum BptnLatchMode {
 ///
 /// # Example
 /// ```rust
-/// use snn_core::bptn::{BptnBistableCell, BptnLatchMode};
+/// use snn_core_bptn::{BptnBistableCell, BptnLatchMode};
 ///
 /// let mut cell = BptnBistableCell::new(BptnLatchMode::ResetDominant);
 /// assert!(!cell.current_state());
@@ -1971,9 +1971,9 @@ mod tests {
 
     #[test]
     fn test_bptn_spiking_network_trait_integration() {
-        use crate::application::readout::StaticReadoutLayer;
-        use crate::domain::numeric::Fix32;
-        use crate::traits::SpikingNetwork;
+        use snn_core::Fix32;
+        use snn_core::SpikingNetwork;
+        use snn_core::StaticReadoutLayer;
 
         // Network of 2 BPTN neurons receiving 2 input channels
         // Neuron 0 detects channel 0 (kernel = 1)
@@ -2029,8 +2029,8 @@ mod tests {
 
     #[test]
     fn test_rbptn_spiking_network_trait_integration() {
-        use crate::domain::numeric::Fix32;
-        use crate::traits::SpikingNetwork;
+        use snn_core::Fix32;
+        use snn_core::SpikingNetwork;
 
         // 1 recurrent neuron, 1 external channel, 2 total channels (1 ext + 1 rec)
         // Self-excitation / bistable retention:

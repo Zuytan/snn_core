@@ -40,6 +40,6 @@ make
 
 Or directly using `gcc` / `clang`:
 ```bash
-gcc -std=c99 main.c -I../../include -L../../target/release -lsnn_core -lm -o c_embedded_demo
+gcc -std=c99 main.c -I../../include -L../../crates/snn_core_c/target/release -lsnn_core -lm -o c_embedded_demo
 ./c_embedded_demo
 ```

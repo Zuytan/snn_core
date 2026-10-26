@@ -4,7 +4,7 @@
   <name>snn_core</name>
   <description>Ultra-low-power bare-metal Spiking Neural Network (SNN) neuromorphic engine in pure Rust (no_std, zero-alloc runtime).</description>
   <url>https://github.com/Zuytan/snn_core</url>
-  <license>LICENSE.md</license>
+  <license>LICENSE</license>
 
   <releases>
     <release version="0.4.0" date="2026-10-22">
@@ -41,7 +41,6 @@
       <description>snn_core Neuromorphic Inference Engine</description>
       <files>
         <file category="header" name="include/snn_core.h"/>
-        <file category="header" name="include/snn_core_c99.h"/>
         <file category="doc" name="README.md"/>
         <file category="doc" name="docs/c_integration_guide.md"/>
         <file category="doc" name="docs/binary_format_spec.md"/>

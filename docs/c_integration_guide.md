@@ -13,19 +13,12 @@ This guide describes the official procedure for integrating the `snn_core` neuro
 
 ---
 
-## 📦 1. Two Available Integration Modes
+## 📦 1. Integration model
 
-`snn_core` provides two industrial integration modes tailored to your toolchain constraints:
+The Rust crates are the single implementation of the engine. C and C++ projects link the static library built from `crates/snn_core_c` and include [`include/snn_core.h`](../include/snn_core.h). A Rust toolchain is needed at build time (not at run time). `crates/snn_core_c/tests/header_parity.rs` fails if the header and the Rust exports diverge.
 
-### Option A: Standalone Header-Only C99 Runtime (Recommended for MCU Industry)
-No Rust or Cargo toolchain dependency is required. The complete inference runtime is self-contained within [`include/snn_core_c99.h`](../include/snn_core_c99.h):
-* 100% strict C99 (`-std=c99 -Wall -Wextra -Werror -pedantic`).
-* Zero dynamic allocation, saturating Fix32 arithmetic with CMSIS-DSP hooks (`__QADD`, `__SSAT`) and native hardware `__builtin_ctz`.
-* Immediate drop-in integration via a single `#include "snn_core_c99.h"` directive in your Keil MDK, IAR EWARM, STM32CubeIDE, or Makefile projects.
-
-### Option B: Static Rust FFI Library (`libsnn_core.a`)
-For projects linking the compiled binary engine directly from Rust source:
-In the subfolder `crates/snn_core_c`, build the static archive for your target microcontroller:
+### Building the static library (`libsnn_core.a`)
+In the subfolder `crates/snn_core_c` (a standalone Cargo package), build the static archive for your target microcontroller. The BPTN functions declared in `snn_core.h` are included by the default `bptn` feature; on bare-metal targets the crate is `no_std` and installs a minimal panic handler (release profile uses `panic = "abort"`). Run these commands from that folder:
 
 ```bash
 # For ARM Cortex-M4 / Cortex-M7 without hardware FPU
@@ -50,12 +43,7 @@ The generated archive is located at:
 
 Add the following to your build system (Makefile, CMake, Keil µVision, STM32CubeIDE):
 1. Public include path: `-I<snn_core>/include`
-2. If using **Option A** (Standalone C99):
-   ```c
-   #include "snn_core_c99.h"
-   ```
-3. If using **Option B** (Static Rust library):
-   Link with `-L<path_to_libsnn_core> -lsnn_core` and include:
+2. Link with `-L<path_to_libsnn_core> -lsnn_core` and include:
    ```c
    #include "snn_core.h"
    ```

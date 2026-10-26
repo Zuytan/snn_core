@@ -1,8 +1,7 @@
 pub mod aer;
 pub mod arena;
 pub mod bitset;
-#[cfg(feature = "bptn")]
-pub mod bptn;
+pub mod blob;
 pub mod compact_population;
 #[cfg(feature = "alloc")]
 pub mod csr;
@@ -15,7 +14,6 @@ pub mod layers;
 pub mod lazy_population;
 pub mod metrics;
 pub mod models;
-pub mod narma;
 #[cfg(feature = "alloc")]
 pub mod network;
 #[cfg(feature = "alloc")]
@@ -29,23 +27,13 @@ pub mod stdp;
 pub mod synapse;
 
 pub use aer::{AerBitsetDecoder, AerDmaRingBuffer, AerSpike1d, AerSpike2d};
+#[allow(deprecated)]
+pub use arena::ArenaSpikingNetwork;
 pub use arena::{
     ActivationArena, ArenaFeedforwardLayer, ArenaLayerChain, ArenaLif16Population,
-    ArenaLifPopulation, ArenaSpikingLayer, ArenaSpikingNetwork,
+    ArenaLifPopulation, ArenaSpikingLayer,
 };
 pub use bitset::SpikeBitset;
-#[cfg(feature = "bptn")]
-pub use bptn::{
-    BPTN_CODEBOOK_SIZE, BPTN_WINDOW_SIZE, BPTN_WINDOW_SIZE_32, BptnBistableCell,
-    BptnFeedforwardLayer, BptnGatedCell, BptnLatchMode, BptnLexicon, BptnLexiconEntry, BptnNeuron,
-    BptnSpikingNetwork, BptnSynapse, BptnToggleCell, CANONICAL_BPTN_CODEBOOK_32, CodebookBptnLayer,
-    CodebookBptnNeuron, CompactBptnNeuron, CompactCodebookSynapse, MultiScaleBptnNeuron,
-    MultiScalePyramidBuffer, RBptnLayer, RBptnSpikingNetwork, SimdWord4x32,
-    TemporalFramingBuffer32, TemporalFramingBuffer64, Word32, compute_symbolic_simhash,
-    dilate_temporal_jitter, dilate_temporal_jitter_32, erode_temporal_noise,
-    erode_temporal_noise_32, open_temporal_filter, open_temporal_filter_32, shift_temporal_age,
-    shift_temporal_age_32, shift_temporal_delay, shift_temporal_delay_32, swar_compress_dyadic_u64,
-};
 pub use compact_population::{CompactLif16Population, CompactLifPopulation};
 #[cfg(feature = "alloc")]
 pub use csr::CsrSynapses;
@@ -54,14 +42,16 @@ pub use delay_ring::DelayedSynapseMatrix;
 pub use delay_ring::{StaticSpikeDelayLine, StaticSpikeWordDelayLine};
 pub use encoding::{DeltaModulationEncoder, LatencyEncoder, RateEncoder};
 pub use engine::{
-    EngineError, ExecutionContext, LayerDescriptor, MaxPool2dConfig, MemoryFootprint,
-    ModelDescriptor, SynapseMatrixKind,
+    AlignedBuffer, EngineError, ExecutionContext, LayerDescriptor, MaxPool2dConfig,
+    MemoryFootprint, ModelDescriptor, SynapseMatrixKind,
 };
 pub use hardware::{FastDivider, fast_decay_m0, qadd16, smlad, ssat_16};
+#[allow(deprecated)]
+pub use layers::ChainedSpikingNetwork;
 pub use layers::{
-    ChainedSpikingNetwork, Conv1dSynapses, Conv2dSynapses, ConvDataLayout, DelayedSpikingLayer,
-    LayerChain, QuantizedFeedforwardLayer, ResidualSpikingLayer, SpikeMaxPool2d,
-    SpikingFeedforwardLayer, SpikingLayer, SpikingRecurrentLayer,
+    Conv1dSynapses, Conv2dSynapses, ConvDataLayout, DelayedSpikingLayer, LayerChain,
+    QuantizedFeedforwardLayer, ResidualSpikingLayer, SpikeMaxPool2d, SpikingFeedforwardLayer,
+    SpikingLayer, SpikingRecurrentLayer,
 };
 #[allow(deprecated)]
 pub use layers::{DeepSpikingNetwork2, DeepSpikingNetwork3, DeepSpikingNetwork4};
@@ -70,12 +60,13 @@ pub use lazy_population::LazyDecayLifPopulation;
 pub use generic_static_neuron::{
     GenericStaticNeuronPopulation, HeterogeneousStaticNeuronPopulation,
 };
-pub use metrics::{EnergyEstimator, HardwareProfile, LatencyTracker, SparsityMeter, SynOpsTracker};
+#[allow(deprecated)]
+pub use metrics::HardwareProfile;
+pub use metrics::{EnergyEstimator, LatencyTracker, SparsityMeter, SynOpsTracker};
 pub use models::{
     AlifConfig, AlifDynamics, AlifState, CubaLifConfig, CubaLifDynamics, CubaLifState,
     IzhikevichConfig, IzhikevichDynamics, IzhikevichState, LifConfig, LifDynamics, LifState,
 };
-pub use narma::Narma10System;
 #[cfg(feature = "alloc")]
 pub use network::Network;
 #[cfg(feature = "alloc")]

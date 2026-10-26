@@ -26,6 +26,9 @@ pub fn ssat_16(val: i32) -> i32 {
     #[cfg(all(feature = "cortex-m-dsp", target_arch = "arm"))]
     {
         let res: i32;
+        // SAFETY: inline assembly guarded by the `cfg` on this block (target arch + DSP/Helium feature),
+        // so the instruction exists on the target. It only touches the listed register/memory operands, has no
+        // side effects beyond them, and reads/writes only the stack arrays passed by pointer.
         unsafe {
             core::arch::asm!(
                 "ssat {out}, #16, {inp}",
@@ -64,6 +67,9 @@ pub fn smlad(a_packed: u32, b_packed: u32, acc: i32) -> i32 {
     #[cfg(all(feature = "cortex-m-dsp", target_arch = "arm"))]
     {
         let res: i32;
+        // SAFETY: inline assembly guarded by the `cfg` on this block (target arch + DSP/Helium feature),
+        // so the instruction exists on the target. It only touches the listed register/memory operands, has no
+        // side effects beyond them, and reads/writes only the stack arrays passed by pointer.
         unsafe {
             core::arch::asm!(
                 "smlad {out}, {a}, {b}, {acc}",
@@ -79,6 +85,9 @@ pub fn smlad(a_packed: u32, b_packed: u32, acc: i32) -> i32 {
     #[cfg(all(feature = "riscv-dsp", target_arch = "riscv32"))]
     {
         let mut res = acc;
+        // SAFETY: inline assembly guarded by the `cfg` on this block (target arch + DSP/Helium feature),
+        // so the instruction exists on the target. It only touches the listed register/memory operands, has no
+        // side effects beyond them, and reads/writes only the stack arrays passed by pointer.
         unsafe {
             core::arch::asm!(
                 "kmada {res}, {a}, {b}",
@@ -128,6 +137,9 @@ pub fn qadd16(a_packed: u32, b_packed: u32) -> u32 {
     #[cfg(all(feature = "cortex-m-dsp", target_arch = "arm"))]
     {
         let res: u32;
+        // SAFETY: inline assembly guarded by the `cfg` on this block (target arch + DSP/Helium feature),
+        // so the instruction exists on the target. It only touches the listed register/memory operands, has no
+        // side effects beyond them, and reads/writes only the stack arrays passed by pointer.
         unsafe {
             core::arch::asm!(
                 "qadd16 {out}, {a}, {b}",
@@ -142,6 +154,9 @@ pub fn qadd16(a_packed: u32, b_packed: u32) -> u32 {
     #[cfg(all(feature = "riscv-dsp", target_arch = "riscv32"))]
     {
         let res: u32;
+        // SAFETY: inline assembly guarded by the `cfg` on this block (target arch + DSP/Helium feature),
+        // so the instruction exists on the target. It only touches the listed register/memory operands, has no
+        // side effects beyond them, and reads/writes only the stack arrays passed by pointer.
         unsafe {
             core::arch::asm!(
                 "kadd16 {out}, {a}, {b}",
@@ -198,6 +213,9 @@ pub fn vqadd_4x32(a: [i32; 4], b: [i32; 4]) -> [i32; 4] {
     ))]
     {
         let mut res = [0i32; 4];
+        // SAFETY: inline assembly guarded by the `cfg` on this block (target arch + DSP/Helium feature),
+        // so the instruction exists on the target. It only touches the listed register/memory operands, has no
+        // side effects beyond them, and reads/writes only the stack arrays passed by pointer.
         unsafe {
             core::arch::asm!(
                 "vldrw.u32 q0, [{a}]",
@@ -253,6 +271,9 @@ pub fn vqadd_8x16(a: [i16; 8], b: [i16; 8]) -> [i16; 8] {
     ))]
     {
         let mut res = [0i16; 8];
+        // SAFETY: inline assembly guarded by the `cfg` on this block (target arch + DSP/Helium feature),
+        // so the instruction exists on the target. It only touches the listed register/memory operands, has no
+        // side effects beyond them, and reads/writes only the stack arrays passed by pointer.
         unsafe {
             core::arch::asm!(
                 "vldrh.u16 q0, [{a}]",
@@ -524,6 +545,9 @@ pub fn hardware_usad8_sum4(packed_bytes: u32) -> u32 {
     {
         let res: u32;
         let zero: u32 = 0;
+        // SAFETY: inline assembly guarded by the `cfg` on this block (target arch + DSP/Helium feature),
+        // so the instruction exists on the target. It only touches the listed register/memory operands, has no
+        // side effects beyond them, and reads/writes only the stack arrays passed by pointer.
         unsafe {
             core::arch::asm!(
                 "usad8 {out}, {inp}, {z}",

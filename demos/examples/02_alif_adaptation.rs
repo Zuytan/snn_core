@@ -5,7 +5,7 @@
 //!
 //! Execution:
 //! ```bash
-//! cargo run --example 02_alif_adaptation -p snn_core
+//! cargo run -p snn_core_demos --example 02_alif_adaptation
 //! ```
 
 use snn_core::Fix32;

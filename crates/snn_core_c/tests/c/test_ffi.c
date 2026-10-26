@@ -1,14 +1,22 @@
 /**
- * @file test_c99_standalone.c
- * @brief Comprehensive verification suite for snn_core_c99.h autonomous runtime.
+ * @file test_standalone.c
+ * @brief C FFI smoke tests: link libsnn_core and call the Rust implementation through snn_core.h.
  *
- * Compiles with: gcc -std=c99 -Wall -Wextra -Werror -pedantic tests/test_c99_standalone.c -o test_c99_standalone
+ * Compiles with: gcc -std=c99 -Wall -Wextra -Werror -pedantic tests/test_standalone.c -o test_standalone
  */
 
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
-#include "../include/snn_core_c99.h"
+#include "snn_core.h"
+#include "model_v1_blob.h"
+
+typedef int32_t snn_fix32_t;
+typedef SnnDeepNetworkDesc SnnModelDescriptor;
+typedef SnnDeepNetworkState SnnExecutionContext;
+#define SNN_FIX32_MAX  INT32_MAX
+#define SNN_FIX32_MIN  INT32_MIN
+#define SNN_FIX32_ONE  65536
 
 static void test_fixed_point(void) {
     printf("[TEST] Fixed-Point Q16.16 Arithmetic...\n");
@@ -30,25 +38,14 @@ static void test_fixed_point(void) {
     assert(sat_sub == SNN_FIX32_MIN);
 
     /* Padé exp(-x) test: exp(-1.0) approx 0.367879 */
-    snn_fix32_t exp_neg1 = snn_pade_exp_neg(1.0f);
+    snn_fix32_t exp_neg1 = snn_pade_exp_neg(snn_fix32_from_float(1.0f));
     float exp_f = snn_fix32_to_float(exp_neg1);
     assert(exp_f >= 0.36f && exp_f <= 0.37f);
     printf("  -> OK (1.5 + 2.0 = 3.5, 1.5 * 2.0 = 3.0, saturation and Pade verified)\n");
 }
 
-static void test_ctz_and_bitset(void) {
-    printf("[TEST] CTZ & Spike Bitset Manipulation...\n");
-    assert(snn_ctz32(1U) == 0);
-    assert(snn_ctz32(2U) == 1);
-    assert(snn_ctz32(4U) == 2);
-    assert(snn_ctz32(0x80000000U) == 31);
-    assert(snn_ctz32(0U) == 32);
-
-    assert(snn_popcount32(0U) == 0);
-    assert(snn_popcount32(1U) == 1);
-    assert(snn_popcount32(0xFFFFFFFFU) == 32);
-    assert(snn_popcount32(0x000F000FU) == 8);
-
+static void test_bitset(void) {
+    printf("[TEST] Spike Bitset Manipulation...\n");
     uint32_t words[2] = { 0x00000005U, 0x80000000U }; // Bits 0, 2, and 63 set
     assert(snn_bitset_get_spike(words, 2, 0) == true);
     assert(snn_bitset_get_spike(words, 2, 1) == false);
@@ -56,7 +53,7 @@ static void test_ctz_and_bitset(void) {
     assert(snn_bitset_get_spike(words, 2, 63) == true);
     assert(snn_bitset_get_spike(words, 2, 64) == false);
     assert(snn_bitset_count_spikes(words, 2) == 3);
-    printf("  -> OK (CTZ, POPCNT, Bitset query verified)\n");
+    printf("  -> OK (Bitset query verified)\n");
 }
 
 static void test_aer_decoding(void) {
@@ -340,7 +337,7 @@ static void test_bptn_word_ram(void) {
     printf("  -> OK (BPTN framing, morphological opening, 64-way Smith counter, SWAR majority pool)\n");
 }
 
-static void test_c99_conv2d_maxpool2d(void) {
+static void test_conv2d_maxpool2d(void) {
     printf("[TEST] Conv2D & MaxPool2D Pipeline...\n");
     // Conv2D 1x1: 1 in_ch, 1 out_ch, 4x4 image, kernel weight = 2.0 (131072)
     static const int32_t k_weight[1] = { 131072 };
@@ -433,7 +430,7 @@ static void test_c99_conv2d_maxpool2d(void) {
     printf("  -> OK (Conv2D continuous injection -> LIF -> MaxPool2D bitwise OR)\n");
 }
 
-static void test_c99_recurrent_synapses(void) {
+static void test_recurrent_synapses(void) {
     printf("[TEST] Recurrent Synapses (W_rec Feedback)...\n");
     // Feedforward: input 0 -> neuron 0 (weight 1.5)
     static const uint16_t ff_row_ptrs[2] = { 0, 1 };
@@ -511,24 +508,54 @@ static void test_c99_recurrent_synapses(void) {
     printf("  -> OK (W_rec recurrent spike retention and 1-tick delayed activation verified)\n");
 }
 
+static void test_blob_load(void) {
+    printf("[TEST] Versioned model blob (.snnb) load + inference...\n");
+    SnnLayerDesc layers[4];
+    SnnDeepNetworkDesc desc;
+    size_t n = 0;
+    assert(snn_blob_load(MODEL_V1_BLOB, sizeof MODEL_V1_BLOB, layers, 4, &n, &desc) == 0);
+    assert(n == 2 && desc.num_layers == 2 && desc.in_features == 2);
+
+    size_t need = snn_deep_network_state_size(&desc);
+    static uint8_t arena[512] __attribute__((aligned(4)));
+    assert(need <= sizeof arena);
+    SnnDeepNetworkState st;
+    assert(snn_deep_network_init_state(&desc, arena, sizeof arena, &st) == 0);
+    int32_t in[2] = { 65536, 0 };
+    uint32_t out = 0;
+    assert(snn_deep_network_step(&desc, &st, in, 2, &out, 1) == 0);
+    assert((out & 3U) == 2U); /* same result as the Rust round_trip_runs_inference test */
+
+    /* Refusals: corrupted byte (CRC), wrong length, null, too few slots. */
+    static uint8_t bad[sizeof MODEL_V1_BLOB] __attribute__((aligned(4)));
+    for (size_t i = 0; i < sizeof bad; ++i) bad[i] = MODEL_V1_BLOB[i];
+    bad[40] ^= 0x01;
+    assert(snn_blob_load(bad, sizeof bad, layers, 4, &n, &desc) == 6);
+    assert(snn_blob_load(MODEL_V1_BLOB, sizeof MODEL_V1_BLOB - 1, layers, 4, &n, &desc) == 5);
+    assert(snn_blob_load(NULL, 0, layers, 4, &n, &desc) == -1);
+    assert(snn_blob_load(MODEL_V1_BLOB, sizeof MODEL_V1_BLOB, layers, 1, &n, &desc) == 13);
+    printf("  -> OK (valid blob runs; corrupted/truncated/null/undersized are refused)\n");
+}
+
 int main(void) {
     printf("====================================================================\n");
-    printf("🚀 VALIDATION SUITE: snn_core_c99.h Standalone C99 Runtime\n");
+    printf("🚀 VALIDATION SUITE: libsnn_core (Rust) called from C99\n");
     printf("====================================================================\n");
 
     test_fixed_point();
-    test_ctz_and_bitset();
+    test_bitset();
     test_aer_decoding();
     test_single_layer_network();
     test_deep_network_pingpong();
     test_quantized_int8_layer();
-    test_c99_conv2d_maxpool2d();
-    test_c99_recurrent_synapses();
+    test_conv2d_maxpool2d();
+    test_recurrent_synapses();
     test_dense_readout();
     test_bptn_word_ram();
+    test_blob_load();
 
     printf("\n====================================================================\n");
-    printf("✅ ALL C99 TESTS PASSED STRICTLY (100%% Bit-Exact, Zero-Alloc) !\n");
+    printf("✅ ALL C FFI TESTS PASSED\n");
     printf("====================================================================\n");
     return 0;
 }

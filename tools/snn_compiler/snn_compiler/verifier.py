@@ -22,7 +22,7 @@ def fix32_saturating_add(a: int, b: int) -> int:
     return res
 
 def fix32_mul(a: int, b: int) -> int:
-    """Signed Q16.16 multiplication with nearest unbiased rounding."""
+    """Signed Q16.16 multiplication, rounding half up (toward +infinity), saturating."""
     product = a * b
     res = (product + (1 << 15)) >> 16
     if res > 2147483647:

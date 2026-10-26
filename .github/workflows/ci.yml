@@ -33,53 +33,61 @@ jobs:
       - name: Check Code Formatting
         run: cargo fmt --all -- --check
 
-      - name: Clippy (Default Features)
-        run: cargo clippy --all-targets -- -D warnings
+      - name: Clippy (whole workspace)
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
-      - name: Clippy (Pure no_std / No Default Features)
-        run: cargo clippy --all-targets --no-default-features -- -D warnings
+      - name: Clippy (runtime, pure no_std / no default features)
+        run: cargo clippy -p snn_core --all-targets --no-default-features -- -D warnings
 
-      - name: Tests (Default Features)
-        run: cargo test --verbose
+      - name: Tests (whole workspace)
+        run: cargo test --workspace --verbose
 
-      - name: Tests (Pure no_std / No Default Features)
-        run: cargo test --no-default-features --verbose
+      - name: Tests (runtime, pure no_std / no default features)
+        run: cargo test -p snn_core --no-default-features --verbose
+
+      - name: Check BPTN crate on bare-metal (thumbv7em-none-eabi)
+        run: cargo check -p snn_core_bptn --target thumbv7em-none-eabi
 
       - name: Check ARM Cortex-M0+ Bare-Metal Target (thumbv6m-none-eabi)
-        run: cargo check --target thumbv6m-none-eabi --no-default-features
+        run: cargo check -p snn_core --target thumbv6m-none-eabi --no-default-features
 
       - name: Check ARM Cortex-M4 Bare-Metal Target (thumbv7em-none-eabi)
-        run: cargo check --target thumbv7em-none-eabi --no-default-features
+        run: cargo check -p snn_core --target thumbv7em-none-eabi --no-default-features
 
       - name: Check ARM Cortex-M4 DSP Hardware Acceleration
-        run: cargo check --target thumbv7em-none-eabi --no-default-features --features cortex-m-dsp
+        run: cargo check -p snn_core --target thumbv7em-none-eabi --no-default-features --features cortex-m-dsp
 
       - name: Check RISC-V Bare-Metal Target (riscv32imc-unknown-none-elf)
-        run: cargo check --target riscv32imc-unknown-none-elf --no-default-features
+        run: cargo check -p snn_core --target riscv32imc-unknown-none-elf --no-default-features
 
-      - name: Compile and Run Standalone C99 Verification Suite
+      - name: Check the model-blob golden file against the Python encoder
+        run: (cd tools/snn_compiler && python3 -m snn_compiler.blob ../../tests/data/model_v1.snnb --check)
+
+      - name: Build libsnn_core and run the C smoke tests against it
         run: |
-          gcc -Wall -Wextra -O2 -Iinclude tests/test_c99_standalone.c -o test_c99
-          ./test_c99
+          (cd crates/snn_core_c && cargo build --release)
+          gcc -std=c99 -Wall -Wextra -Werror -pedantic -O2 -Iinclude crates/snn_core_c/tests/c/test_ffi.c \
+            crates/snn_core_c/target/release/libsnn_core.a -lm -lpthread -ldl -o test_ffi
+          ./test_ffi
 
       - name: Run All Demonstrator Examples
         run: |
-          cargo run --example 01_lif_reservoir
-          cargo run --example 02_alif_adaptation
-          cargo run --example 03_izhikevich_regimes
-          cargo run --example 04_static_embedded_pipeline
-          cargo run --example 05_shd_cochlea_benchmark
-          cargo run --example 06_tinyml_vs_snn_head_to_head
-          cargo run --example 07_nir_aot_codegen
-          cargo run --example 08_dwt_hardware_profiling
-          cargo run --release --example 09_bptn_vs_lif_head_to_head
-          cargo run --release --example 10_bptn_long_horizon_memory
-          cargo run --release --example 11_bptn_global_pipeline
-          cargo run --release --example 12_cyber_can_ids_killer_benchmark --features bptn
+          cargo run -p snn_core_demos --example 01_lif_reservoir
+          cargo run -p snn_core_demos --example 02_alif_adaptation
+          cargo run -p snn_core_demos --example 03_izhikevich_regimes
+          cargo run -p snn_core_demos --example 04_static_embedded_pipeline
+          cargo run -p snn_core_demos --example 05_synthetic_cochlea_demo
+          cargo run -p snn_core_demos --example 06_tinyml_vs_snn_head_to_head
+          cargo run -p snn_core_demos --example 07_nir_aot_codegen
+          cargo run -p snn_core_demos --example 08_dwt_hardware_profiling
+          cargo run -p snn_core_demos --release --example 09_bptn_vs_lif_head_to_head
+          cargo run -p snn_core_demos --release --example 10_bptn_long_horizon_memory
+          cargo run -p snn_core_demos --release --example 11_bptn_global_pipeline
+          cargo run -p snn_core_demos --release --example 12_can_ids_benchmark
 
-      - name: Check Subcrates (C Bindings & Codegen)
+      - name: Test and build the C ABI crate and the codegen tool (standalone packages)
         run: |
-          (cd crates/snn_core_c && cargo check)
+          (cd crates/snn_core_c && cargo test && cargo build --release)
           (cd tools/snn_core_codegen && cargo check)
 
       - name: Verify NIR & ONNX AOT Compiler CLI Pipeline

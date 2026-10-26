@@ -1,0 +1,17 @@
+[package]
+name = "snn_core_bptn"
+version = "0.4.0"
+edition = "2024"
+authors = ["Zuytan"]
+description = "Experimental bit-parallel temporal network (BPTN) engine on top of snn_core (no_std, zero-alloc)."
+license = "MIT"
+repository = "https://github.com/Zuytan/snn_core"
+keywords = ["snn", "neuromorphic", "bptn", "no_std", "tinyml"]
+categories = ["embedded", "no-std", "science"]
+publish = false
+
+[dependencies]
+snn_core = { path = "../..", default-features = false }
+
+[lints]
+workspace = true

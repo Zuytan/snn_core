@@ -22,4 +22,3 @@ htmlcov/
 *.so
 *.dylib
 examples/c_embedded_app/c_embedded_app
-test_c99

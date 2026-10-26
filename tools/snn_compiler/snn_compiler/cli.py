@@ -195,7 +195,7 @@ def main():
     parser.add_argument("input_pos", nargs="?", default=None, help="NIR file (.nir), JSON (.json), or demo")
     parser.add_argument("-i", "--input", dest="input_flag", default=None, help="Alternative input file")
     parser.add_argument("-o", "--output", default="generated_network.rs", help="Output source file (.rs or .h)")
-    parser.add_argument("--target", choices=["rust", "c", "c99-standalone"], default="rust", help="Target output language")
+    parser.add_argument("--target", choices=["rust", "c", "blob"], default="rust", help="Target output language")
     parser.add_argument("--threshold", type=float, default=0.001, help="Cutoff threshold for CSR sparse synaptic pruning")
     parser.add_argument("-q", "--quantize-i8", "--quant", dest="quantize_i8", action="store_true", help="Enable INT8 quantization of synapses")
     parser.add_argument("--calibration", choices=["minmax", "kl"], default="minmax", help="Quantization calibration algorithm")
@@ -250,7 +250,18 @@ def main():
     ir_graph = NirGraph(nodes_data, edges_data)
     ir_graph.fold_biases_into_lif()
 
-    if args.target in ("c", "c99-standalone"):
+    if args.target == "blob":
+        from .codegen_blob import generate_blob
+        size = generate_blob(
+            nodes_data,
+            edges_data,
+            args.output,
+            quantize_i8=args.quantize_i8,
+            dt=args.dt,
+            reset_mode=args.reset_mode,
+        )
+        print(f"Versioned model blob (.snnb, format 1.0, {size} bytes) written to: {args.output}")
+    elif args.target in ("c",):
         generate_c_code(
             nodes_data,
             edges_data,
@@ -260,7 +271,7 @@ def main():
             reset_mode=args.reset_mode,
             bundle_runtime=True,
         )
-        print(f"✅ Autonomous C99 firmware generated successfully in: {args.output}")
+        print(f"✅ C firmware tables generated successfully in: {args.output}")
     else:
         generate_rust_code(
             nodes_data,

@@ -3,17 +3,17 @@
 //! Verifies the absolute absence of undefined behavior, buffer overflows,
 //! and panics on critical inference paths, even under malformed or corrupted inputs.
 
-use snn_core::application::ffi::*;
-use snn_core::domain::aer::{AerBitsetDecoder, AerSpike1d, AerSpike2d};
-use snn_core::domain::bitset::SpikeBitset;
-use snn_core::domain::compact_population::CompactLifPopulation;
-use snn_core::domain::engine::{EngineError, LayerDescriptor, ModelDescriptor};
-use snn_core::domain::hardware::FastDivider;
-use snn_core::domain::layers::{Conv2dSynapses, ConvDataLayout};
-use snn_core::domain::models::lif::LifConfig;
-use snn_core::domain::numeric::{Fix16, Fix32};
-use snn_core::domain::rom_csr::{QuantizedRomCsrSynapses, RomCsrSynapses};
-use snn_core::traits::SynapseMatrix;
+use runtime::domain::aer::{AerBitsetDecoder, AerSpike1d, AerSpike2d};
+use runtime::domain::bitset::SpikeBitset;
+use runtime::domain::compact_population::CompactLifPopulation;
+use runtime::domain::engine::{EngineError, LayerDescriptor, ModelDescriptor};
+use runtime::domain::hardware::FastDivider;
+use runtime::domain::layers::{Conv2dSynapses, ConvDataLayout};
+use runtime::domain::models::lif::LifConfig;
+use runtime::domain::numeric::{Fix16, Fix32};
+use runtime::domain::rom_csr::{QuantizedRomCsrSynapses, RomCsrSynapses};
+use runtime::traits::SynapseMatrix;
+use snn_core::*;
 
 /// Lightweight, deterministic, reproducible pseudo-random LCG generator for fuzzing
 struct FuzzRng {
@@ -271,8 +271,8 @@ fn test_fuzz_c_ffi_deep_network_adversarial() {
         num_neurons: 4,
         config: cfg,
         synapses: empty_syn,
-        conv2d: snn_core::application::ffi::SnnConv2dDesc::default(),
-        pool2d: snn_core::application::ffi::SnnMaxPool2dDesc::default(),
+        conv2d: snn_core::SnnConv2dDesc::default(),
+        pool2d: snn_core::SnnMaxPool2dDesc::default(),
         recurrent_synapses: core::ptr::null(),
         bias: core::ptr::null(),
         quant_scale: 0,
@@ -596,7 +596,7 @@ fn test_fuzz_model_descriptor_buffer_safety() {
 #[cfg(feature = "bptn")]
 mod bptn_fuzz {
     use super::*;
-    use snn_core::domain::bptn::{
+    use snn_core_bptn::{
         CompactBptnNeuron, TemporalFramingBuffer64, bptn_parallel_smith_step_u64,
         swar_majority_pool_8x8,
     };

@@ -8,7 +8,7 @@ version = "0.4.0"
 description = "Industrial AOT Compiler for NIR Neuromorphic Models to Zero-Allocation Rust/C Firmware (snn_core)"
 readme = "README.md"
 requires-python = ">=3.8"
-license = { text = "PolyForm-Noncommercial-1.0.0" }
+license = { text = "MIT" }
 authors = [{ name = "Zuytan" }]
 keywords = ["neuromorphic", "spiking-neural-networks", "tinyml", "nir", "embedded", "firmware", "compiler"]
 classifiers = [

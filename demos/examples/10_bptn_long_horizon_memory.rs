@@ -12,7 +12,7 @@
 //!
 //! Execution:
 //! ```bash
-//! cargo run --release --features bptn --example 10_bptn_long_horizon_memory
+//! cargo run -p snn_core_demos --release --example 10_bptn_long_horizon_memory
 //! ```
 
 #![allow(
@@ -23,11 +23,11 @@
     clippy::cast_sign_loss
 )]
 
-use snn_core::domain::bptn::{
+use snn_core::domain::numeric::Fix32;
+use snn_core_bptn::{
     BptnHysteresisLatch, BptnRobustToggleCell, BptnToggleCell, MultiScalePyramidBuffer,
     TemporalFramingBuffer64,
 };
-use snn_core::domain::numeric::Fix32;
 use std::time::Instant;
 
 /// Deterministic zero-allocation XorShift64 pseudo-random generator.

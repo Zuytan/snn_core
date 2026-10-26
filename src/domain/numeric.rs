@@ -6,6 +6,9 @@ use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAss
 /// The 16 most significant bits represent the integer part (-32,768 to +32,767),
 /// and the 16 least significant bits represent the fractional part (resolution ~0.000015).
 ///
+/// Arithmetic saturates instead of wrapping. Multiplication rounds half up (toward +infinity),
+/// which is a small positive bias of at most half an LSB per operation, not round-half-even.
+///
 /// # Example
 /// ```rust
 /// use snn_core::Fix32;
@@ -19,6 +22,7 @@ use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAss
 /// assert_eq!(product, Fix32::from_num(3.0));
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Default)]
+#[repr(transparent)]
 pub struct Fix32(pub i32);
 
 impl Fix32 {

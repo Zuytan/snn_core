@@ -11,7 +11,6 @@
 //!    - Catastrophic saturation of Max-Pooling `OR` (H-BPTN) under background noise;
 //!    - Superiority of continuous SNN LIF (`Fix32`) on smooth analog signal tracking.
 
-#![cfg(feature = "bptn")]
 #![allow(
     clippy::needless_range_loop,
     clippy::cast_precision_loss,
@@ -20,16 +19,16 @@
     clippy::doc_lazy_continuation
 )]
 
-use snn_core::domain::bptn::{
-    BptnFeedforwardLayer, BptnNeuron, BptnRobustToggleCell, BptnSpikingNetwork, BptnSynapse,
-    BptnToggleCell, CompactBptnNeuron, MultiScalePyramidBuffer, TemporalFramingBuffer64,
-    dilate_temporal_jitter,
-};
 use snn_core::domain::compact_population::CompactLifPopulation;
 use snn_core::domain::delay_ring::StaticSpikeWordDelayLine;
 use snn_core::domain::models::lif::{LifConfig, ResetMode};
 use snn_core::domain::numeric::Fix32;
 use snn_core::traits::{SpikingNetwork, SpikingPopulation};
+use snn_core_bptn::{
+    BptnFeedforwardLayer, BptnNeuron, BptnRobustToggleCell, BptnSpikingNetwork, BptnSynapse,
+    BptnToggleCell, CompactBptnNeuron, MultiScalePyramidBuffer, TemporalFramingBuffer64,
+    dilate_temporal_jitter,
+};
 
 struct DeterministicRng {
     state: u64,

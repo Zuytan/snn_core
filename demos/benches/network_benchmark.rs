@@ -327,6 +327,8 @@ fn bench_conv2d_propagation(c: &mut Criterion) {
 }
 
 /// Benchmark 8: Activation Arena vs Compact Spiking Layers (Zero-Alloc Ping-Pong)
+/// Measures the deprecated `ArenaSpikingNetwork` wrapper against the compact layers.
+#[allow(deprecated)]
 fn bench_arena_vs_compact(c: &mut Criterion) {
     use snn_core::domain::arena::{ActivationArena, ArenaFeedforwardLayer, ArenaLifPopulation};
     use snn_core::domain::layers::{SpikingFeedforwardLayer, SpikingLayer};

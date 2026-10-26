@@ -3,13 +3,48 @@
 //! Enables direct integration of `snn_core` into industrial C / C++ projects
 //! (FreeRTOS, Zephyr RTOS, STM32Cube, ESP-IDF) without rewriting firmware in Rust.
 
-use crate::domain::aer::{AerSpike1d, AerSpike2d};
-use crate::domain::numeric::Fix32;
+//! # Safety contract (applies to every `unsafe` block in this module)
+//!
+//! Each `extern "C"` function that dereferences caller-provided pointers is `unsafe` and documents
+//! the caller obligations: every pointer must be non-null (null is checked and rejected where the
+//! function returns a status code), properly aligned for its type, and valid for the stated
+//! element count for the duration of the call; mutable outputs must not alias any input. Inside the
+//! functions, `slice::from_raw_parts{,_mut}` calls rely exactly on those obligations, and lengths
+//! are derived from the validated descriptor/state, never from untrusted data beyond the caller's
+//! own descriptor. Memory handed over as an arena is carved up with alignment and size checks
+//! (`SNN_ERR_*` codes) before any cast.
+
+use runtime::domain::aer::{AerSpike1d, AerSpike2d};
+use runtime::domain::numeric::Fix32;
 
 /// Converts a C float to Fix32 Q16.16
 #[unsafe(no_mangle)]
 pub extern "C" fn snn_fix32_from_float(val: f32) -> i32 {
     Fix32::from_num(val).0
+}
+
+/// Fix32 (Q16.16) saturating multiplication, bit-exact with the Rust `Fix32 * Fix32`.
+#[unsafe(no_mangle)]
+pub extern "C" fn snn_fix32_mul(a: i32, b: i32) -> i32 {
+    (Fix32::from_bits(a) * Fix32::from_bits(b)).0
+}
+
+/// Saturating 32-bit signed addition (Q16.16 compatible).
+#[unsafe(no_mangle)]
+pub extern "C" fn snn_saturating_add_i32(a: i32, b: i32) -> i32 {
+    Fix32::from_bits(a).saturating_add(Fix32::from_bits(b)).0
+}
+
+/// Saturating 32-bit signed subtraction (Q16.16 compatible).
+#[unsafe(no_mangle)]
+pub extern "C" fn snn_saturating_sub_i32(a: i32, b: i32) -> i32 {
+    Fix32::from_bits(a).saturating_sub(Fix32::from_bits(b)).0
+}
+
+/// Pade (2,2) approximation of `exp(-x)`; input and output are Q16.16.
+#[unsafe(no_mangle)]
+pub extern "C" fn snn_pade_exp_neg(x_q16: i32) -> i32 {
+    runtime::application::nir_import::pade_exp_neg(Fix32::from_bits(x_q16)).0
 }
 
 /// Converts a Fix32 Q16.16 to C float
@@ -390,8 +425,10 @@ pub unsafe extern "C" fn snn_network_step(
 
         let current_v = Fix32::from_bits(mem_slice[i]);
         #[cfg(feature = "cortex-m0")]
-        let decayed =
-            crate::domain::hardware::fast_decay_m0(current_v, d.config.decay_factor.max(0) as u32);
+        let decayed = runtime::domain::hardware::fast_decay_m0(
+            current_v,
+            d.config.decay_factor.max(0) as u32,
+        );
         #[cfg(not(feature = "cortex-m0"))]
         let decayed = current_v * cfg_decay;
 
@@ -1206,7 +1243,7 @@ pub unsafe extern "C" fn snn_deep_network_step(
             } else {
                 let v_cur = Fix32::from_bits(*v_mem);
                 #[cfg(feature = "cortex-m0")]
-                let decayed = crate::domain::hardware::fast_decay_m0(
+                let decayed = runtime::domain::hardware::fast_decay_m0(
                     v_cur,
                     cfg_decay.to_bits().max(0) as u32,
                 );
@@ -1374,6 +1411,92 @@ pub unsafe extern "C" fn snn_model_reset(
     unsafe { snn_deep_network_reset(desc, context) }
 }
 
+/// Validates a versioned model blob (`.snnb`) and builds a deep-network descriptor that points into it.
+///
+/// Returns 0 on success, a positive `BlobError` code (1..=13, see `docs/binary_format_spec.md`) when the
+/// blob is refused, or -1 for null/invalid arguments. On success `out_layers[0..*out_num_layers]` and
+/// `*out_desc` are filled; they borrow `blob`, which must stay valid, unmodified and 4-byte aligned.
+///
+/// # Safety
+/// `blob` must be valid for `blob_len` bytes; `out_layers` for `capacity` elements; `out_num_layers`
+/// and `out_desc` must be valid for writes. None of the outputs may overlap `blob`.
+// INT8 weights keep the `*const i32` type of `SnnCsrMatrix.weights` (as the generated C tables do);
+// the INT8 code path reads them back as `i8`, never as `i32`.
+#[allow(clippy::cast_ptr_alignment)]
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn snn_blob_load(
+    blob: *const u8,
+    blob_len: usize,
+    out_layers: *mut SnnLayerDesc,
+    capacity: usize,
+    out_num_layers: *mut usize,
+    out_desc: *mut SnnDeepNetworkDesc,
+) -> i32 {
+    if blob.is_null() || out_layers.is_null() || out_num_layers.is_null() || out_desc.is_null() {
+        return -1;
+    }
+    // SAFETY: non-null checked; the caller guarantees `blob` is readable for `blob_len` bytes.
+    let bytes = unsafe { core::slice::from_raw_parts(blob, blob_len) };
+    let model = match runtime::domain::blob::ModelBlob::parse(bytes) {
+        Ok(m) => m,
+        Err(e) => return e.code(),
+    };
+    let n = model.num_layers();
+    if n > capacity {
+        return runtime::domain::blob::BlobError::TooManyLayers {
+            needed: n,
+            capacity,
+        }
+        .code();
+    }
+    // SAFETY: non-null checked; the caller guarantees `out_layers` is writable for `capacity >= n` elements.
+    let layers = unsafe { core::slice::from_raw_parts_mut(out_layers, n) };
+    for (i, slot) in layers.iter_mut().enumerate() {
+        let Some(v) = model.layer(i) else {
+            return -1;
+        };
+        let (weights, layer_type) = match (v.weights_fix32, v.weights_i8) {
+            (Some(w), _) => (w.as_ptr().cast::<i32>(), SnnLayerType::Feedforward),
+            (None, Some(w)) => (w.as_ptr().cast::<i32>(), SnnLayerType::QuantizedInt8),
+            (None, None) => return -1,
+        };
+        *slot = SnnLayerDesc {
+            layer_type,
+            in_features: v.in_features,
+            num_neurons: v.out_features,
+            config: SnnLifConfig {
+                threshold: v.lif.threshold.0,
+                decay_factor: v.lif.decay_factor.0,
+                reset_potential: v.lif.reset_potential.0,
+                refractory_period: v.lif.refractory_period,
+                bias: v.lif.bias.0,
+                reset_mode: u8::from(v.lif.reset_mode == runtime::domain::models::lif::ResetMode::Subtract),
+            },
+            synapses: SnnCsrMatrix {
+                row_ptrs: v.row_ptrs.as_ptr(),
+                targets: v.targets.as_ptr(),
+                weights,
+                in_features: v.in_features,
+                out_features: v.out_features,
+                total_synapses: v.targets.len(),
+            },
+            bias: v.bias.map_or(core::ptr::null(), |b| b.as_ptr().cast::<i32>()),
+            quant_scale: v.quant_scale.0,
+            ..SnnLayerDesc::default()
+        };
+    }
+    // SAFETY: non-null checked above; the caller guarantees both outputs are valid for writes.
+    unsafe {
+        *out_num_layers = n;
+        *out_desc = SnnDeepNetworkDesc {
+            layers: out_layers.cast_const(),
+            num_layers: n,
+            in_features: layers[0].in_features,
+        };
+    }
+    0
+}
+
 /// Propagates active spikes across a spatial 2D convolution with HWC layout directly in C
 ///
 /// # Safety
@@ -1397,8 +1520,8 @@ pub unsafe extern "C" fn snn_conv2d_propagate_hwc(
     accumulators: *mut i32,
     accumulators_len: usize,
 ) -> i32 {
-    use crate::domain::layers::{Conv2dSynapses, ConvDataLayout};
-    use crate::traits::SynapseMatrix;
+    use runtime::domain::layers::{Conv2dSynapses, ConvDataLayout};
+    use runtime::traits::SynapseMatrix;
 
     if accumulators.is_null() || accumulators_len == 0 || kernel_weights.is_null() {
         return -1;
@@ -1473,12 +1596,12 @@ pub unsafe extern "C" fn snn_bptn_latch_step(
     if latch_state.is_null() {
         return false;
     }
-    let mut cell = crate::domain::bptn::BptnBistableCell {
+    let mut cell = snn_core_bptn::BptnBistableCell {
         state_history: unsafe { *latch_state },
         mode: if mode == 1 {
-            crate::domain::bptn::BptnLatchMode::SetDominant
+            snn_core_bptn::BptnLatchMode::SetDominant
         } else {
-            crate::domain::bptn::BptnLatchMode::ResetDominant
+            snn_core_bptn::BptnLatchMode::ResetDominant
         },
     };
     let res = cell.step(set, reset);
@@ -1496,11 +1619,105 @@ pub unsafe extern "C" fn snn_bptn_toggle_step(toggle_state: *mut u64, toggle: bo
     if toggle_state.is_null() {
         return false;
     }
-    let mut cell = crate::domain::bptn::BptnToggleCell {
+    let mut cell = snn_core_bptn::BptnToggleCell {
         state_history: unsafe { *toggle_state },
     };
     let res = cell.step(toggle);
     unsafe { *toggle_state = cell.state_history };
+    res
+}
+
+/// Temporal morphological erosion over a 64-tick spike history.
+#[cfg(feature = "bptn")]
+#[unsafe(no_mangle)]
+pub extern "C" fn snn_bptn_erode_64(x: u64, kappa: u8) -> u64 {
+    snn_core_bptn::erode_temporal_noise(x, kappa)
+}
+
+/// Temporal morphological opening (erosion then dilation) over a 64-tick spike history.
+#[cfg(feature = "bptn")]
+#[unsafe(no_mangle)]
+pub extern "C" fn snn_bptn_open_filter_64(x: u64, kappa: u8) -> u64 {
+    snn_core_bptn::open_temporal_filter(x, kappa)
+}
+
+/// SWAR 8x8 majority pooling: one output bit per byte lane reaching `threshold` set bits.
+#[cfg(feature = "bptn")]
+#[unsafe(no_mangle)]
+pub extern "C" fn snn_bptn_majority_pool_8x8(x: u64, threshold: u8) -> u8 {
+    snn_core_bptn::swar_majority_pool_8x8(x, threshold)
+}
+
+/// 64-lane parallel Smith counter step; writes the next `(c1, c0)` planes.
+///
+/// # Safety
+/// `out_c1` and `out_c0` must be valid, aligned, writable `u64` pointers (null is ignored).
+#[cfg(feature = "bptn")]
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn snn_bptn_parallel_smith_step_u64(
+    c1: u64,
+    c0: u64,
+    inc: u64,
+    dec: u64,
+    out_c1: *mut u64,
+    out_c0: *mut u64,
+) {
+    let (n1, n0) = snn_core_bptn::bptn_parallel_smith_step_u64(c1, c0, inc, dec);
+    // SAFETY: the caller guarantees the non-null pointers are valid and aligned for writes.
+    unsafe {
+        if !out_c1.is_null() {
+            *out_c1 = n1;
+        }
+        if !out_c0.is_null() {
+            *out_c0 = n0;
+        }
+    }
+}
+
+/// 2-bit hysteresis latch step (state in 0..=3, active when >= 2).
+///
+/// # Safety
+/// `state` must point to a valid, aligned `u8`.
+#[cfg(feature = "bptn")]
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn snn_bptn_hysteresis_step(state: *mut u8, set: bool, reset: bool) -> bool {
+    if state.is_null() {
+        return false;
+    }
+    // SAFETY: non-null checked above; the caller guarantees validity and alignment.
+    let mut cell = snn_core_bptn::BptnHysteresisLatch {
+        state: unsafe { *state }.min(3),
+        state_history: 0,
+    };
+    let res = cell.step(set, reset);
+    unsafe { *state = cell.state };
+    res
+}
+
+/// Robust toggle step (a trigger must hold for 2 consecutive ticks to flip the state).
+///
+/// # Safety
+/// `history` must point to a valid `u64` and `prev_trigger` to a valid `bool`, both aligned.
+#[cfg(feature = "bptn")]
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn snn_bptn_robust_toggle_step(
+    history: *mut u64,
+    prev_trigger: *mut bool,
+    trigger: bool,
+) -> bool {
+    if history.is_null() || prev_trigger.is_null() {
+        return false;
+    }
+    // SAFETY: non-null checked above; the caller guarantees validity and alignment.
+    let mut cell = snn_core_bptn::BptnRobustToggleCell {
+        state_history: unsafe { *history },
+        prev_trigger: unsafe { *prev_trigger },
+    };
+    let res = cell.step(trigger);
+    unsafe {
+        *history = cell.state_history;
+        *prev_trigger = cell.prev_trigger;
+    }
     res
 }
 

@@ -12,6 +12,9 @@
 //! 3. **`ArenaLifPopulation` & `ArenaLif16Population`**: Lightweight populations reduced
 //!    strictly to persistent states (5 bytes/neuron in Fix32, 3 bytes/neuron in Fix16).
 
+// The deprecated legacy wrappers below are still implemented and tested here until they are removed.
+#![allow(deprecated)]
+
 use crate::domain::models::lif::{Lif16Config, LifConfig, ResetMode};
 use crate::domain::numeric::{Fix16, Fix32, NumericScalar};
 use crate::traits::{SpikingNetwork, SynapseMatrix};
@@ -414,6 +417,12 @@ impl<SIn: SynapseMatrix<Fix16>, const N: usize> ArenaSpikingLayer<Fix16>
 }
 
 /// Chain of interconnected layers sharing the same memory arena via Ping-Pong.
+///
+/// # Panics
+///
+/// `forward_*` panics if an intermediate layer has more than 64 words (2048 neurons), because the
+/// ping buffer is a fixed 64-word stack array. Use `ArenaSpikingNetwork` with `ActivationArena`
+/// for larger layers.
 #[derive(Clone, Copy, Debug)]
 pub struct ArenaLayerChain<
     Head: ArenaSpikingLayer<T>,
@@ -509,7 +518,13 @@ impl<Head: ArenaSpikingLayer<T>, Tail: ArenaSpikingLayer<T>, T: NumericScalar> A
 ///
 /// Implements [`SpikingNetwork`]. Zero dynamic allocation during inference,
 /// with strict SRAM arena reuse across all layers.
+///
+/// Deprecated: [`ModelDescriptor`](crate::ModelDescriptor) plans the same arena reuse.
 #[derive(Clone, Copy, Debug)]
+#[deprecated(
+    since = "0.5.0",
+    note = "use `ModelDescriptor` + `ExecutionContext` (domain::engine): one inference path, no generics, SRAM buffer sized by `MemoryFootprint`"
+)]
 pub struct ArenaSpikingNetwork<
     Chain: ArenaSpikingLayer<T>,
     const MAX_NEURONS: usize,
@@ -633,6 +648,9 @@ macro_rules! arena_chain_layers {
 }
 
 /// Macro declaring a complete [`ArenaSpikingNetwork`] with integrated memory arena.
+///
+/// Deprecated in favour of `ModelDescriptor`.
+#[deprecated(since = "0.5.0", note = "use `ModelDescriptor` + `ExecutionContext`")]
 #[macro_export]
 macro_rules! arena_spiking_network {
     (max_neurons: $max_n:expr, max_words: $max_w:expr, out_n: $out_n:expr; $($layer:expr),+ $(,)?) => {

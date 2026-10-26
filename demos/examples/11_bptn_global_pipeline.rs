@@ -17,7 +17,7 @@
 //!
 //! Execution:
 //! ```bash
-//! cargo run --release --features bptn --example 11_bptn_global_pipeline
+//! cargo run -p snn_core_demos --release --example 11_bptn_global_pipeline
 //! ```
 
 #![allow(
@@ -30,14 +30,14 @@
 )]
 
 use snn_core::application::readout::StaticReadoutLayer;
-use snn_core::domain::bptn::{
-    BptnFeedforwardLayer, BptnSpikingNetwork, CompactBptnNeuron, dilate_temporal_jitter,
-};
 use snn_core::domain::compact_population::CompactLifPopulation;
 use snn_core::domain::delay_ring::StaticSpikeWordDelayLine;
 use snn_core::domain::models::lif::{LifConfig, ResetMode};
 use snn_core::domain::numeric::Fix32;
 use snn_core::traits::{SpikingNetwork, SpikingPopulation};
+use snn_core_bptn::{
+    BptnFeedforwardLayer, BptnSpikingNetwork, CompactBptnNeuron, dilate_temporal_jitter,
+};
 use std::time::Instant;
 
 const N_CHANNELS: usize = 4;

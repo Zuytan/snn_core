@@ -1,43 +1,86 @@
-//! # 🧠 `snn_core`
+//! # `snn_core`
 //!
-//! Ultra-low power neuromorphic engine in pure Rust for bare-metal embedded architectures (`#![no_std]`).
+//! Spiking-neural-network runtime for microcontrollers (`#![no_std]`, Cortex-M0+ to M7, RISC-V), with
+//! saturating fixed-point arithmetic ([`Fix32`] Q16.16, [`Fix16`] Q8.8) and no heap allocation on the
+//! inference path.
 //!
-//! Designed specifically for sparse neuromorphic inference on microcontrollers (ARM Cortex-M0+/M3/M4 without FPU, RISC-V):
-//! - **Zero dynamic heap allocation** on the critical path (`no_std`, Flash ROM `.rodata` layout).
-//! - **Saturating fixed-point arithmetic**: [`Fix32`] (Q16.16) and [`Fix16`] (Q8.8).
-//! - **Ultra-dense memory layouts**: [`CompactLifPopulation`] (9 bytes/neuron), [`CompactLif16Population`] (5 bytes/neuron), [`ActivationArena`].
-//! - **Vectorized spike bus**: [`SpikeBitset`] with hardware native `CTZ` (`trailing_zeros`) decoding.
+//! ## Which API to use
 //!
-//! ## Minimal zero-allocation inference example
+//! | Need | Use |
+//! | :--- | :--- |
+//! | Run a model on a device | [`ModelDescriptor`] + [`ExecutionContext`] (this page, first example) |
+//! | Simulate on a host, learn online (STDP), or build custom dynamics | [`GenericStaticNetwork`] and the [`SpikingNetwork`] trait |
+//! | Deploy a trained NIR / ONNX graph | `tools/snn_compiler`, which emits a [`ModelDescriptor`] |
+//! | Call from C / C++ | the `snn_core_c` crate and `include/snn_core.h` |
+//!
+//! `ChainedSpikingNetwork`, `ArenaSpikingNetwork` and `arena_spiking_network!` are deprecated: they
+//! duplicate what [`ModelDescriptor`] does.
+//!
+//! ## Memory model
+//!
+//! - **Flash (`.rodata`)**: the [`ModelDescriptor`], its [`LayerDescriptor`]s, the CSR synapse tables
+//!   ([`RomCsrSynapses`]) and the neuron configurations. All are `const`/`static` and never written.
+//! - **SRAM**: one buffer you provide, sized by [`ModelDescriptor::sram_bytes`] (computed at compile time
+//!   from the layer sizes). It holds the accumulators, the activation bitsets shared between layers,
+//!   the membrane potentials, refractory counters and recurrent spikes.
+//! - **Alignment**: the buffer must be 4-byte aligned; use [`AlignedBuffer`]. Otherwise
+//!   `init_context` returns [`EngineError::MisalignedBuffer`]. A buffer that is too small returns
+//!   [`EngineError::BufferTooSmall`].
+//!
+//! ## Inference
+//!
+//! ```rust
+//! use snn_core::{
+//!     AlignedBuffer, Fix32, LayerDescriptor, LifConfig, ModelDescriptor, RomCsrSynapses,
+//! };
+//!
+//! static ROW: [u16; 3] = [0, 1, 2];
+//! static TARGETS: [u16; 2] = [0, 1];
+//! static WEIGHTS: [Fix32; 2] = [Fix32::from_bits(98304), Fix32::from_bits(65536)]; // 1.5 and 1.0
+//!
+//! static SYNAPSES: RomCsrSynapses<'static> = RomCsrSynapses::new(&ROW, &TARGETS, &WEIGHTS);
+//! static LAYERS: [LayerDescriptor<'static>; 1] = [LayerDescriptor::new(
+//!     2,
+//!     2,
+//!     SYNAPSES,
+//!     LifConfig::new(Fix32::ONE, Fix32::from_bits(58982), Fix32::ZERO, 1),
+//!     None,
+//! )];
+//! static MODEL: ModelDescriptor<'static> = ModelDescriptor::new(&LAYERS);
+//!
+//! let mut sram = AlignedBuffer::<256>::new(); // >= MODEL.sram_bytes()
+//! let mut ctx = MODEL.init_context(sram.as_mut_bytes()).expect("buffer large enough and aligned");
+//!
+//! let mut out_spikes = [0u32; 1];
+//! MODEL.step(&mut ctx, &[Fix32::ONE, Fix32::ZERO], &mut out_spikes).expect("step succeeds");
+//! assert_eq!(out_spikes[0] & 1, 1); // neuron 0 received 1.5 >= threshold 1.0
+//! ```
+//!
+//! ## Host simulation and online learning
 //!
 //! ```rust
 //! use snn_core::domain::compact_population::CompactLifPopulation;
 //! use snn_core::models::lif::{LifConfig, ResetMode};
 //! use snn_core::{Fix32, GenericStaticNetwork, RomCsrSynapses, SpikingNetwork};
 //!
-//! // 1. CSR matrices stored in Flash ROM (.rodata)
 //! static IN_ROW_PTR: [u16; 2] = [0, 1];
 //! static IN_TARGETS: [u16; 1] = [0];
-//! static IN_WEIGHTS: [Fix32; 1] = [Fix32::from_bits(98304)]; // 1.5 in Q16.16 fixed-point
+//! static IN_WEIGHTS: [Fix32; 1] = [Fix32::from_bits(98304)]; // 1.5 in Q16.16
 //!
 //! static INT_ROW_PTR: [u16; 3] = [0, 1, 1];
 //! static INT_TARGETS: [u16; 1] = [1];
-//! static INT_WEIGHTS: [Fix32; 1] = [Fix32::from_bits(65536)]; // 1.0 in Q16.16 fixed-point
+//! static INT_WEIGHTS: [Fix32; 1] = [Fix32::from_bits(65536)]; // 1.0 in Q16.16
 //!
 //! let in_synapses = RomCsrSynapses::new(&IN_ROW_PTR, &IN_TARGETS, &IN_WEIGHTS);
 //! let int_synapses = RomCsrSynapses::new(&INT_ROW_PTR, &INT_TARGETS, &INT_WEIGHTS);
 //!
-//! // 2. Compact population of 2 LIF neurons (9 bytes/neuron in Fix32)
 //! let config = LifConfig::new(Fix32::ONE, Fix32::from_bits(58982), Fix32::ZERO, 1)
 //!     .with_reset_mode(ResetMode::Subtract);
 //! let neurons = CompactLifPopulation::<2>::new(config);
 //!
-//! // 3. Generic static network (2 neurons, 1 input)
 //! let mut network: GenericStaticNetwork<_, _, _, 2, 1> =
 //!     GenericStaticNetwork::new(neurons, int_synapses, in_synapses);
-//!
-//! let inputs = [Fix32::ONE];
-//! let spikes = network.tick(&inputs);
+//! let spikes = network.tick(&[Fix32::ONE]);
 //! assert!(spikes[0]);
 //! ```
 
@@ -62,27 +105,14 @@ pub mod metrics {
     pub use crate::domain::metrics::*;
 }
 
-pub mod narma {
-    pub use crate::domain::narma::*;
-}
-
 // Silicon hardware acceleration primitives (ARM Cortex-M, RISC-V)
 pub mod hardware {
     pub use crate::domain::hardware::*;
 }
 
-// C FFI interface for microcontroller and RTOS C/C++ integration
-pub mod ffi {
-    pub use crate::application::ffi::*;
-}
-
 // Re-exports of fundamental traits
 pub use traits::{NeuronDynamics, Readout, SpikingNetwork, SpikingPopulation, SynapseMatrix};
 
-pub use application::can_parser::{
-    ParsedCanFrame, parse_any_can_line, parse_candump_compact_line, parse_candump_standard_line,
-    parse_hcrl_csv_line, parse_timestamp_us,
-};
 pub use application::nir_import::{
     NirAffineNode, NirConv1dNode, NirConv2dNode, NirCubaLifNode, NirLifNode, NirLinearNode,
     pade_exp_neg,
@@ -95,58 +125,42 @@ pub use application::readout::{
     StaticReadoutLayer, TrainableReadoutLayer, TrainableRegressionReadout,
 };
 
-// Silico-native BPTN (Bit-Parallel Temporal Neural Network) computing model - Optional feature
-#[cfg(feature = "bptn")]
-pub mod bptn {
-    pub use crate::domain::bptn::*;
-}
-
 pub use domain::aer::{AerBitsetDecoder, AerDmaRingBuffer, AerSpike1d, AerSpike2d};
+#[allow(deprecated)]
+pub use domain::arena::ArenaSpikingNetwork;
 pub use domain::arena::{
     ActivationArena, ArenaFeedforwardLayer, ArenaLayerChain, ArenaLif16Population,
-    ArenaLifPopulation, ArenaSpikingLayer, ArenaSpikingNetwork,
+    ArenaLifPopulation, ArenaSpikingLayer,
 };
 pub use domain::bitset::SpikeBitset;
-#[cfg(feature = "bptn")]
-pub use domain::bptn::{
-    BPTN_CODEBOOK_SIZE, BPTN_WINDOW_SIZE, BPTN_WINDOW_SIZE_32, BptnBistableCell,
-    BptnFeedforwardLayer, BptnGatedCell, BptnHysteresisLatch, BptnLatchMode, BptnLexicon,
-    BptnLexiconEntry, BptnNeuron, BptnRobustToggleCell, BptnSpikingNetwork, BptnSynapse,
-    BptnToggleCell, CANONICAL_BPTN_CODEBOOK_32, CodebookBptnLayer, CodebookBptnNeuron,
-    CompactBptnNeuron, CompactCodebookSynapse, MultiScaleBptnNeuron, MultiScalePyramidBuffer,
-    RBptnLayer, RBptnSpikingNetwork, SimdWord4x32, TemporalFramingBuffer32,
-    TemporalFramingBuffer64, Word32, bptn_parallel_smith_step_u64, compute_symbolic_simhash,
-    dilate_temporal_jitter, dilate_temporal_jitter_32, erode_temporal_noise,
-    erode_temporal_noise_32, open_temporal_filter, open_temporal_filter_32, shift_temporal_age,
-    shift_temporal_age_32, shift_temporal_delay, shift_temporal_delay_32, swar_compress_dyadic_u64,
-    swar_majority_pool_8x8,
-};
+pub use domain::blob::{BlobError, ModelBlob};
 pub use domain::compact_population::{CompactLif16Population, CompactLifPopulation};
 #[allow(deprecated)]
 pub use domain::delay_ring::DelayedSynapseMatrix;
 pub use domain::delay_ring::{StaticSpikeDelayLine, StaticSpikeWordDelayLine};
 pub use domain::encoding::{DeltaModulationEncoder, LatencyEncoder, RateEncoder};
 pub use domain::engine::{
-    EngineError, ExecutionContext, LayerDescriptor, MaxPool2dConfig, MemoryFootprint,
-    ModelDescriptor, SynapseMatrixKind,
+    AlignedBuffer, EngineError, ExecutionContext, LayerDescriptor, MaxPool2dConfig,
+    MemoryFootprint, ModelDescriptor, SynapseMatrixKind,
 };
 pub use domain::generic_static_neuron::{
     GenericStaticNeuronPopulation, HeterogeneousStaticNeuronPopulation,
 };
 pub use domain::hardware::{FastDivider, fast_decay_m0, qadd16, smlad, ssat_16};
+#[allow(deprecated)]
+pub use domain::layers::ChainedSpikingNetwork;
 pub use domain::layers::{
-    ChainedSpikingNetwork, Conv1dSynapses, Conv2dSynapses, ConvDataLayout, DelayedSpikingLayer,
-    LayerChain, QuantizedFeedforwardLayer, ResidualSpikingLayer, SpikeMaxPool2d,
-    SpikingFeedforwardLayer, SpikingLayer, SpikingRecurrentLayer,
+    Conv1dSynapses, Conv2dSynapses, ConvDataLayout, DelayedSpikingLayer, LayerChain,
+    QuantizedFeedforwardLayer, ResidualSpikingLayer, SpikeMaxPool2d, SpikingFeedforwardLayer,
+    SpikingLayer, SpikingRecurrentLayer,
 };
 #[allow(deprecated)]
 pub use domain::layers::{DeepSpikingNetwork2, DeepSpikingNetwork3, DeepSpikingNetwork4};
 pub use domain::lazy_population::LazyDecayLifPopulation;
-pub use domain::metrics::{
-    EnergyEstimator, HardwareProfile, LatencyTracker, SparsityMeter, SynOpsTracker,
-};
+#[allow(deprecated)]
+pub use domain::metrics::HardwareProfile;
+pub use domain::metrics::{EnergyEstimator, LatencyTracker, SparsityMeter, SynOpsTracker};
 
-pub use domain::narma::Narma10System;
 #[cfg(feature = "alloc")]
 pub use domain::network::Network;
 #[cfg(feature = "alloc")]
@@ -167,3 +181,8 @@ pub use domain::stdp::{
     HomeostaticThreshold, RewardModulatedStdp, StaticCscIndex, StaticStdpLearner, StdpConfig,
 };
 pub use domain::synapse::Synapse;
+
+/// Compiles and runs the Rust code blocks of `README.md` as doctests, so the README cannot drift from the API.
+#[cfg(doctest)]
+#[doc = include_str!("../README.md")]
+struct ReadmeDoctests;

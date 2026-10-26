@@ -4,7 +4,7 @@ version = "0.4.0"
 edition = "2024"
 authors = ["Zuytan"]
 description = "Ultra-low-power, bare-metal spiking neural network (SNN) engine in pure Rust (no_std, zero-alloc runtime, Fix32 saturating fixed-point arithmetic)."
-license = "PolyForm-Noncommercial-1.0.0"
+license = "MIT"
 repository = "https://github.com/Zuytan/snn_core"
 readme = "README.md"
 keywords = ["snn", "neuromorphic", "spiking-neural-network", "no_std", "tinyml"]
@@ -14,72 +14,29 @@ categories = ["embedded", "no-std", "science"]
 crate-type = ["rlib"]
 
 [features]
-default = ["alloc", "bptn"]
+default = ["alloc"]
 alloc = []
-bptn = []
 cortex-m-dsp = []
 cortex-m-helium = []
 cortex-m0 = []
 riscv-dsp = []
 
-
 [dependencies]
 
-[dev-dependencies]
-criterion = "0.5"
-fastrand = { version = "2.3.0", default-features = false }
-nalgebra = { version = "0.33.2" }
+[lints]
+workspace = true
 
-[[bench]]
-name = "network_benchmark"
-harness = false
-required-features = ["alloc"]
+[workspace]
+members = [".", "crates/snn_core_bptn", "demos"]
+# Standalone packages: the C ABI crate keeps the library name `snn_core` (libsnn_core.a),
+# the firmware targets another architecture and edition, the codegen tool has its own dependencies.
+exclude = ["crates/snn_core_c", "examples/wio_e5_benchmark", "tools/snn_core_codegen"]
 
-[[example]]
-name = "01_lif_reservoir"
-required-features = ["alloc"]
-
-[[example]]
-name = "05_shd_cochlea_benchmark"
-required-features = ["alloc"]
-
-[[example]]
-name = "06_tinyml_vs_snn_head_to_head"
-required-features = ["alloc"]
-
-[[example]]
-name = "07_nir_aot_codegen"
-required-features = ["alloc"]
-
-[[example]]
-name = "08_dwt_hardware_profiling"
-required-features = ["alloc"]
-
-[[example]]
-name = "09_bptn_vs_lif_head_to_head"
-required-features = ["alloc", "bptn"]
-
-[[example]]
-name = "10_bptn_long_horizon_memory"
-required-features = ["alloc", "bptn"]
-
-[[example]]
-name = "11_bptn_global_pipeline"
-required-features = ["alloc", "bptn"]
-
-[[example]]
-name = "12_cyber_can_ids_killer_benchmark"
-required-features = ["alloc", "bptn"]
-
-[[example]]
-name = "13_bptn_command_lexicon_engine"
-required-features = ["alloc", "bptn"]
-
-[lints.rust]
+[workspace.lints.rust]
 unsafe_op_in_unsafe_fn = "deny"
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_feature, values("mve"))'] }
 
-[lints.clippy]
+[workspace.lints.clippy]
 pedantic = { level = "warn", priority = -1 }
 module_name_repetitions = "allow"
 must_use_candidate = "allow"
