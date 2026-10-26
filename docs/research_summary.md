@@ -109,7 +109,100 @@ Le plan prévoyait ce cas : ne pas intégrer la forêt LUT au runtime comme mod�
 un modèle expérimental, à présenter avec son domaine de validité. Le résultat (positif sur SHD,
 négatif ailleurs, avec les mesures) reste publiable tel quel.
 
-## 7. Questions ouvertes
+## 7. Projections (non mesurées)
+
+> Cette section extrapole à partir des mesures ci-dessus. **Aucun de ces chiffres n'est mesuré** ;
+> chaque projection indique sur quoi elle repose et l'expérience qui la confirmerait ou l'infirmerait.
+> Elles n'ont pas de ligne dans `CLAIMS.md` et ne doivent pas être citées comme résultats.
+
+**Point de départ (mesuré).** La forêt gagne grâce au calcul conditionnel (environ 6,4 Ko lus sur
+41,7 Ko de modèle) et à des nœuds riches (une fonction quelconque de 6 bits appris). Elle perd quand
+l'information est un comptage ou une forme répartie sur toute la fenêtre. Tout dépend donc de la
+question : l'information utile est-elle localisée dans quelques motifs de bits ?
+
+### P1. Domaines où l'avantage devrait tenir
+
+| Probablement favorable | Probablement défavorable |
+| :--- | :--- |
+| Capteurs à événements à signature temporelle précise (cochlées silicium, capteurs tactiles à événements, attaques temporelles brèves) | Énergie, enveloppe ou taux moyen (parole en log-mel, vibration stationnaire) |
+| Motifs binaires précis dans des trames (usurpation de certains octets, signatures de protocole) | Comptages sur une fenêtre (DoS, débit) : corrigés par l'agrégation, mais sans gain de coût |
+| Déclencheurs à faible taux de faux positifs sur des motifs connus | Images et signaux denses et continus |
+
+*Test* : une tâche à événements natifs (par exemple DVS Gesture) et une tâche CAN centrée sur les
+charges utiles plutôt que sur les comptages.
+
+### P2. L'écart grandit avec la taille de l'entrée
+
+Par construction, une inférence coûte environ arbres × profondeur × ~100 cycles plus une feuille par
+arbre, quelle que soit la largeur de l'entrée ; un CNN dense paie proportionnellement à l'entrée.
+
+| Entrée | Forêt 64 × 4 | CNN « large » (borne `SMLAD`) | Rapport |
+| :--- | :---: | :---: | :---: |
+| 64 × 64 bits (mesuré / borne) | ~30 k cycles | ≥ 562 k | ≥ 18× |
+| 10× plus large (projection) | ~30 k (inchangé) | ≥ ~5,6 M | ≥ ~180× |
+
+*Réserve* : vrai seulement si la précision tient, ce que Speech Commands contredit pour les tâches où
+l'information est répartie. Le coût d'entraînement, lui, grandit (un score par position et par entrée
+de nœud : 98 M pour 4 000 nœuds sur 4 096 bits).
+
+### P3. Décision à chaque pas en temps réel
+
+SHD produit un pas toutes les 15,6 ms, soit 64 décisions par seconde si l'on répond à chaque pas :
+
+- forêt 64 × 4 : 30 124 × 64 ≈ 1,9 M cycles/s, environ **4 %** du CPU à 48 MHz ;
+- CNN de précision comparable : au moins 562 k × 64 ≈ 36 M cycles/s, au moins **75 %** du CPU en
+  borne basse, donc probablement pas tenable une fois le coût réel mesuré.
+
+À environ 74 % de précision, c'est la différence entre faisable et non faisable sur ce MCU.
+*Condition* : une forêt invariante au décalage (positions relatives au pas courant), pas encore faite.
+
+### P4. Sur MCU sans DSP, l'avantage devrait augmenter
+
+La forêt n'utilise aucune multiplication ; le CNN s'appuie sur `SMLAD` (2 multiplications-
+accumulations par cycle sur Cortex-M4). Sur Cortex-M0+ ou RISC-V minimal, le CNN devrait coûter
+plusieurs fois plus et la forêt à peu près pareil ; l'ampleur n'est pas estimable sans mesure.
+*Test* : même protocole sur une carte M0+ ou RISC-V.
+
+### P5. La forêt comme premier étage d'une cascade
+
+Coût moyen d'une cascade = forêt + part de cas difficiles × CNN. Avec 30 à 50 % de cas renvoyés au
+CNN, environ 1,5 à 3× moins de cycles qu'un CNN seul pour une précision proche. L'arrêt anticipé a
+montré que les marges de votes sont exploitables (60 % du modèle lu pour −0,4 point sur SHD).
+*Test* : mesurer la part réelle de cas difficiles sur Speech Commands et AutoHack.
+
+### P6. Co-conception matérielle
+
+- **CPU** : environ 100 cycles par nœud aujourd'hui, surtout pour rassembler 6 bits épars. Avec une
+  instruction de type `PEXT` et des feuilles en SIMD (`SADD8`), la forêt 64 × 4 passerait d'environ
+  30 k à environ 3 à 5 k cycles (60 à 100 µs à 48 MHz).
+- **FPGA** : un nœud est exactement une LUT6 ; une forêt 64 × 4 tiendrait dans quelques centaines de
+  LUT plus un additionneur, avec une latence de quelques cycles. Terrain déjà occupé par LogicNets et
+  les DWN.
+- C'est la piste la plus fidèle à l'idée de départ (le modèle dicte l'instruction) et la plus
+  incertaine.
+
+### Limites de ces projections
+
+- **Généralité** : une tâche gagnée sur trois.
+- **Énergie** : à une inférence par seconde, le CPU travaille 0,06 % du temps ; la consommation est
+  alors dominée par la veille et les capteurs. Le gain de cycles ne pèse qu'à haute fréquence de
+  décision (P3).
+- **Concurrence** : NPU intégrés aux nouveaux MCU, réseaux sans poids publiés pour FPGA.
+- **Entraînement** coûteux, précision sensible à l'encodage.
+
+### Synthèse
+
+| Horizon | Intérêt projeté | Confiance |
+| :--- | :--- | :--- |
+| Court terme | Détecteur de motifs à événements très rapide, à pire cas garanti, sur un domaine validé (type SHD) | Bonne : mesuré sur SHD |
+| Moyen terme | Décision à chaque pas en temps réel ; MCU sans DSP ; premier étage de cascade | Moyenne : mécanismes mesurés, aucun test |
+| Long terme | Primitive matérielle (instruction de type `PEXT`, FPGA) pour un calcul par lectures mémoire à adressage appris | Faible à moyenne : spéculatif |
+
+L'expérience la plus rentable ensuite est P3 : une décision à chaque pas sur SHD avec une forêt
+invariante au décalage. C'est là que l'écart mesuré deviendrait une capacité nouvelle sur le MCU, et
+pas seulement un gain de vitesse.
+
+## 8. Questions ouvertes
 
 - Cycles réels des CNN int8 sur la carte (firmware CMSIS-NN prêt, mesure interrompue).
 - Consommation mesurée au PPK2 ou au Joulescope : toutes les énergies sont estimées.
@@ -121,7 +214,7 @@ négatif ailleurs, avec les mesures) reste publiable tel quel.
 - Revue de littérature (WiSARD, DWN, LogicNets, machines de Tsetlin, arbres multivariés) avant toute
   revendication de nouveauté.
 
-## 8. Reproduire
+## 9. Reproduire
 
 ```bash
 python3 -m venv ~/.cache/snn_core/venv
