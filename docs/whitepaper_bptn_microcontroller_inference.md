@@ -1,7 +1,7 @@
-# Bit-Parallel Temporal Neural Networks (BPTN): Sub-Microsecond Multi-Scale Temporal Inference on Word-RAM Microcontrollers without FPU or MAC Operations
+# Bit-Parallel Temporal Neural Networks (BPTN): Multi-Scale Temporal Inference on Word-RAM Microcontrollers without FPU or MAC Operations
 
-**Authors:** `snn_core` Research & Engineering Team  
-**Venue Target:** TinyML Research Symposium / IEEE Transactions on Emerging Topics in Computing  
+**Status:** Draft, not peer reviewed, not submitted. Claims limited to what `CLAIMS.md` lists as established.  
+**Author:** Zuytan  
 **Source Code & Associated Firmware:** [https://github.com/Zuytan/snn_core](https://github.com/Zuytan/snn_core)  
 **Qualified Target Silicon:** Seeed Studio Wio-E5 (STMicroelectronics STM32WLE5JC, ARM Cortex-M4 @ 48 MHz)
 
@@ -13,7 +13,7 @@ Artificial intelligence inference on ultra-low-power edge microcontrollers (ARM 
 
 In this work, we formally introduce the **Bit-Parallel Temporal Neural Network (BPTN)** architecture. BPTN abandons the biomimetic emulation of analog membrane potentials in favor of a silicon-centric algebraic formalism operating directly on the Word-RAM architecture of 32/64-bit microprocessors. By leveraging intra-word vectorization (*SWAR*), discrete 1D temporal morphology ($\mathcal{O}_\kappa$), and 4-state saturating Smith automata (HS-BPTN), BPTN executes multi-scale spatio-temporal convolutions in **$\mathcal{O}(1)$ branchless logical instructions (`XOR`, `AND`, `POPCNT`)**.
 
-Deployed under real physical conditions on an **STM32WLE5JC microcontroller (bare ARM Cortex-M4, `#![no_std]`, zero SRAM heap allocation)**, BPTN evaluates a complete Keyword Spotting (KWS) network of 256 temporal synapses across a 1.024-second receptive field in **8,193 CPU cycles (170.69 µs)**, corresponding to **0.50 cycle per synapse per time-step** with **ZERO hardware multiplications (0 MACs)**. Compared to TinyML baselines on identical silicon, BPTN is **$2.3\times$ faster than an LIF SNN** and **$7.1\times$ faster than an int8 Micro-GRU**, slashing inference energy to **2.37 nJ** and enabling continuous autonomous operation exceeding 10 years on a single standard CR2032 coin cell.
+Deployed under real physical conditions on an **STM32WLE5JC microcontroller (bare ARM Cortex-M4, `#![no_std]`, zero SRAM heap allocation)**, BPTN evaluates a layer of 256 temporal synapses (synthetic masks, not a trained keyword-spotting model) across a 64-step window in **11,972 CPU cycles (249.42 µs at 48 MHz, 2 Flash wait states)**, corresponding to **0.73 cycle per synapse per time-step** with **ZERO hardware multiplications (0 MACs)**. No comparison with LIF SNN, TFLite Micro or CMSIS-NN baselines has been measured on the same board yet, and no accuracy is reported on a public dataset; those are the open items of this draft.
 
 ---
 
@@ -91,36 +91,38 @@ C_0' = (\operatorname{none} \ \& \ C_0) \mid (\operatorname{eff\_inc} \ \& \ (\n
 
 ## 4. Empirical Silicon Measurements (STM32WLE5JC)
 
-Physical tests were conducted on a **Seeed Studio Wio-E5** clocked at 48 MHz without FPU, instrumented with the ARM DWT `CYCCNT` register and SEGGER RTT telemetry over an SWD probe.
+Physical tests were conducted on a **Seeed Studio Wio-E5** clocked at 48 MHz (2 Flash wait states, set and read back by the firmware) without FPU, instrumented with the ARM DWT `CYCCNT` register and SEGGER RTT telemetry over an SWD probe.
 
 ### 4.1. Micro-Architectural Primitives
 
-| Hardware Primitive | CPU Duration (DWT) | Physical Latency @ 48 MHz | Equivalent Throughput |
-| :--- | :---: | :---: | :---: |
-| **1D Dilation ($\mathcal{D}_1$)** | 6.00 cycles | 125.0 ns | 512 million ops/s |
-| **1D Erosion ($\mathcal{E}_1$)** | 6.00 cycles | 125.0 ns | 512 million ops/s |
-| **Temporal Opening ($\mathcal{O}_1$)** | 6.00 cycles | 125.0 ns | 512 million ops/s |
-| **64-Way Smith Counter (HS-BPTN)** | 12.00 cycles | 250.0 ns | 5.3 billion states/s |
-| **SWAR Majority Pool 8x8** | 8.00 cycles | 166.6 ns | 384 million ops/s |
+| Hardware Primitive | Cycles (DWT), including `black_box` harness | Time @ 48 MHz |
+| :--- | :---: | :---: |
+| **1D Dilation ($\mathcal{D}_1$)** | 20.0 | 417 ns |
+| **1D Erosion ($\mathcal{E}_1$)** | 20.0 | 417 ns |
+| **Temporal Opening ($\mathcal{O}_1$)** | 28.0 | 584 ns |
+| **2-Bit Hysteresis Latch (HS-BPTN)** | 22.0 | 458 ns |
 
-### 4.2. KWS Head-to-Head Benchmark (256 Temporal Synapses / 64 Steps)
+Earlier drafts gave 6 to 12 cycles and throughputs derived from them; those runs used constant inputs the
+compiler could fold, at the 4 MHz reset clock. They are withdrawn.
 
-| Metric Evaluated | Silicon-Native 64-bit BPTN | LIF SNN (Q16.16) | Micro-GRU (TinyML int8) |
-| :--- | :---: | :---: | :---: |
-| **CPU Cycles / Inference** | **8,193 cycles** | 18,500 cycles | 58,000 cycles |
-| **Execution Time @ 48 MHz** | **170.69 µs** | 385.4 µs | 1,208.3 µs |
-| **Energy Dissipated** | **2.37 nJ** | 5.34 nJ | 16.75 nJ |
-| **Multiplications (MACs)** | **0 (ZERO)** | 256 MACs | 1,800 MACs |
-| **State SRAM Footprint** | **0 bytes** | 144 bytes | 850 bytes |
-| **Standby CPU Duty Cycle (1 Hz)** | **0.017 %** | 0.039 % | 0.121 % |
+### 4.2. BPTN layer cost (256 temporal synapses / 64 steps, synthetic masks)
+
+| Metric | Silicon-Native 64-bit BPTN (STM32WLE5JC @ 48 MHz) |
+| :--- | :---: |
+| **CPU cycles / inference** (DWT CYCCNT) | 11,972 cycles |
+| **Execution time @ 48 MHz, 2 wait states** | 249.42 µs |
+| **Energy estimate, CPU active only** | ≈ 3.46 µJ (249.42 µs × 13.86 mW; assumed current, not measured with a current probe) |
+| **Multiplications** | 0 in the BPTN kernel |
+
+Earlier drafts compared these figures with a LIF SNN and a Micro-GRU. Those baseline numbers were not
+measured and were removed. See `CLAIMS.md` and `comparative_benchmark_analysis.md` for what is established.
 
 ---
 
 ## 5. Conclusion
 
-The BPTN architecture demonstrates that aligning neuromorphic temporal computation with the native micro-architecture of Word-RAM microprocessors unlocks dramatic performance improvements over traditional TinyML and biophysical SNN models:
-* **Speed:** Full inference in under 200 microseconds on an economical 48 MHz Cortex-M4 core.
-* **Energy:** 2.37 nanojoules per classification decision, providing an autonomous lifespan exceeding 10 years on a single coin-cell battery.
-* **Robustness:** Zero heap allocation, proven mathematical noise resilience via morphological operators, and branchless saturating Smith counters.
-
-BPTN sets a new state-of-the-art benchmark for real-time temporal intelligence on resource-constrained microcontrollers.
+BPTN is a research direction: aligning temporal computation with the word-parallel operations of a
+Cortex-M core (AND, shift, popcount). What is established so far is its cycle cost on one board for one
+synthetic layer. Open questions: accuracy on real datasets, trainability beyond toy tasks, and a fair
+comparison with TFLite Micro / CMSIS-NN and LIF SNNs on the same task, accuracy and measured energy.
+In tick-by-tick streaming, an event-driven LIF is faster than BPTN on the author's own host benchmark.

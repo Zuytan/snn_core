@@ -252,23 +252,23 @@
     <div class="metrics-bar">
         <div class="metric-card">
             <div class="metric-sub">Silicon Timing Cost</div>
-            <div class="metric-val" id="cycleDisplay">0.50 cycle</div>
+            <div class="metric-val" id="cycleDisplay">0.73 cycle</div>
             <div class="metric-sub">per synapse / time step</div>
         </div>
         <div class="metric-card">
-            <div class="metric-sub">Energy per Inference</div>
-            <div class="metric-val">2.37 nJ</div>
-            <div class="metric-sub">STM32WLE5JC @ 48 MHz</div>
+            <div class="metric-sub">Energy estimate per inference</div>
+            <div class="metric-val">3.46 &micro;J</div>
+            <div class="metric-sub">CPU active only, from an assumed current</div>
         </div>
         <div class="metric-card">
-            <div class="metric-sub">Hardware Speedup</div>
-            <div class="metric-val" style="color: var(--accent-cyan);">7.1x</div>
-            <div class="metric-sub">vs TinyML Micro-GRU</div>
+            <div class="metric-sub">Latency, 256 synapses, 64 ticks</div>
+            <div class="metric-val" style="color: var(--accent-cyan);">249.42 &micro;s</div>
+            <div class="metric-sub">11,972 cycles @ 48 MHz, 2 wait states (no baseline measured)</div>
         </div>
         <div class="metric-card">
-            <div class="metric-sub">CR2032 Battery Lifetime</div>
-            <div class="metric-val">&gt; 10 years</div>
-            <div class="metric-sub">Continuous CPU load: 0.017%</div>
+            <div class="metric-sub">CPU load at 1 inference / s</div>
+            <div class="metric-val">0.025%</div>
+            <div class="metric-sub">battery life not claimed</div>
         </div>
     </div>
 

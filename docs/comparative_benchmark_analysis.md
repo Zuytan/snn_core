@@ -1,7 +1,7 @@
 # 🔬 Rigorous Comparative Evaluation Report: Silicon-Native BPTN vs LIF SNN & Micro-GRU
 
 **Date:** October 2026  
-**Status:** Unbiased Experimental Audit (100% Executed, Zero Hardcoded Values)  
+**Status:** Host-side measurements (desktop CPU). Silicon figures for LIF and GRU baselines are NOT measured; see `CLAIMS.md`.  
 **Theoretical Reference:** [`docs/formal_specification_bptn.md`](formal_specification_bptn.md)  
 **Automated Test Suite:** [`tests/bptn_adversarial_tests.rs`](../tests/bptn_adversarial_tests.rs)
 
@@ -17,32 +17,38 @@ All common benchmarking biases have been eliminated to clearly demonstrate **bot
 
 ---
 
-## 1. Micro-Architectural Reality: Streaming Mode (`Stride = 1`) vs Block Mode (`Stride = 64`)
+## 1. Same task, same output: LIF vs BPTN
 
-A classic benchmarking flaw consists of comparing 64 time-steps of an LIF SNN (`Stride = 1`) against **a single** BPTN evaluation at the end of the window (`Stride = 64`), or concealing the raw Flash ROM consumption of 64-bit kernels.
+*Rewritten 2026-10-25. The previous version of this section compared models with arbitrary weights that
+did not solve the same task (2.2 M vs 102 M output spikes); its ratios (BPTN 26.9× faster in block mode,
+LIF 2.7× faster in streaming, 16,640 B vs 4,096 B Flash for 64 × 16 layers) are withdrawn, see `CLAIMS.md`.*
 
-The benchmark [`examples/09_bptn_vs_lif_head_to_head.rs`](../examples/09_bptn_vs_lif_head_to_head.rs) strictly isolates the two execution regimes ($N=64$ neurons, $M=16$ channels, input spike density $12.5\%$):
+The benchmark [`demos/examples/09_bptn_vs_lif_head_to_head.rs`](../demos/examples/09_bptn_vs_lif_head_to_head.rs)
+gives every model the same deterministic synthetic task and asks for the same output:
 
-### A. Measured Execution Latency
+* 16 input channels, windows of 64 ticks, background noise of 1/16 per tick and per channel;
+* in half of the 20,000 windows, a weak burst (1/8 per tick and per channel) on channels 0 to 3 during the
+  last 16 ticks;
+* one decision per window, at its last tick: burst present or not.
 
-| Architecture & Evaluation Mode | Latency / Window (64t) | Cost per Tick ($t$) | Gain vs Dense LIF (`Stride=1`) | Empirical Verdict |
-| :--- | :---: | :---: | :---: | :--- |
-| **1. Dense LIF SNN (`CTZ`, `Stride = 1`)** | $6,872\text{ ns}$ | **$107.4\text{ ns}$** | $1.00\times$ (Ref) | **Faster for tick-by-tick sparse streaming** |
-| **2. Lazy-LIF SNN (`Event`, `Stride = 1`)** | $13,038\text{ ns}$ | $203.7\text{ ns}$ | $0.53\times$ | Penalized when density $>10\%$ (LUT indexing cost) |
-| **3. Streaming BPTN (`Stride = 1`, every tick)** | $18,502\text{ ns}$ | $289.1\text{ ns}$ | **$0.37\times$ ($2.7\times$ slower)** | Re-evaluates $64 \times 16 = 1,024$ `POPCNT`s at every tick |
-| **4. Block Windowed BPTN (`Stride = 64`)** | **$255\text{ ns}$** | **$3.99\text{ ns}$** (amortized) | **$\times 26.9$ faster** | **Unbeatable if decision is taken once per window** |
+Each model is one detector neuron. Its parameters were picked by a small grid search on the same data
+(LIF decay 0.85 to 0.96 and weight 0.10 to 0.25; BPTN threshold 7 to 10). BPTN's framing-buffer shifts are
+counted in its time.
 
-> [!IMPORTANT]
-> **Critical Finding #1:** In **strict tick-by-tick streaming (`Stride = 1`)** on sparse event inputs ($12.5\%$ spikes), the **LIF SNN with CTZ decoding is $2.7\times$ faster than BPTN** because it only iterates through active channels at tick $t$, whereas BPTN evaluates all $M \times N$ `u64` bitmasks at every tick. BPTN's massive acceleration factor ($\times 27$) is realized exclusively in **block evaluation mode (`Stride = 64`)** after DMA buffer accumulation over 64 ticks.
+| Model | Accuracy | False pos. | False neg. | Host time per decision | vs dense LIF |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| Dense LIF (Fix32, stepped every tick) | 90.84 % | 992 | 839 | about 229 ns | 1.00× |
+| Lazy LIF (decay on input only) | 90.84 % | 997 | 835 | about 203 ns | 1.13× |
+| BPTN, evaluated once per window | 93.44 % | 438 | 875 | about 182 to 187 ns | 1.23× to 1.27× |
+| BPTN, evaluated at every tick | 93.44 % | 438 | 875 | about 246 ns | 0.95× |
 
-### B. Physical Memory Footprint Audit (Flash ROM vs SRAM)
+One run on an Apple M1 Pro (host CPU), 2026-10-25. Model memory, from the data layout: LIF 16 B Flash and
+9 B SRAM; BPTN 260 B Flash (16 kernels and 16 polarity masks) and 128 B SRAM (16 framing buffers).
 
-| Model Configuration ($N=64, M=16$) | Physical Flash ROM (Weights) | Dynamic SRAM (State) | Physical Trade-off |
-| :--- | :---: | :---: | :--- |
-| **LIF SNN (`Fix32` Q16.16)** | $4,096\text{ B}$ | $576\text{ B}$ ($9\text{ B}$/neuron) | Balanced ROM/SRAM |
-| **Quantized LIF SNN (`INT8`)** | **$1,024\text{ B}$** | $576\text{ B}$ ($9\text{ B}$/neuron) | **Most compact in Flash ROM ($8\times$ to $16\times$)** |
-| **Full BPTN (Kernel + Polarity `u64`)** | $16,640\text{ B}$ | **$128\text{ B}$** ($0\text{ B}$/neuron) | **$4.5\times$ less SRAM, but $4\times$ more Flash ROM** |
-| **Excitatory BPTN (Kernel `u64` only)** | $8,448\text{ B}$ | **$128\text{ B}$** ($0\text{ B}$/neuron) | **$4.5\times$ less SRAM, but $2\times$ more Flash ROM** |
+What this shows: on a task suited to a fixed temporal window, BPTN is slightly more accurate and slightly
+faster when one decision per window is enough, and loses its speed advantage when it must answer at every
+tick; it needs more Flash and SRAM than a single LIF neuron. What it does not show: anything about real
+data, trained models, larger layers or a Cortex-M.
 
 ---
 
