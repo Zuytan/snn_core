@@ -826,6 +826,8 @@ def main():
     ap.add_argument("--data-dir", type=Path, default=Path.home() / ".cache" / "snn_core" / "shd")
     ap.add_argument("--download", action="store_true", help="download SHD (about 169 MB) if missing")
     ap.add_argument("--synthetic", action="store_true", help="use a small synthetic dataset (smoke test)")
+    ap.add_argument("--data-npz", type=Path, default=None,
+                    help="encoded dataset (.npz with x_train, y_train, x_test, y_test) instead of SHD")
     ap.add_argument("--channels", type=int, default=64)
     ap.add_argument("--ticks", type=int, default=64)
     ap.add_argument("--t-max", type=float, default=1.0, help="seconds of each sample kept")
@@ -857,9 +859,17 @@ def main():
     torch.manual_seed(args.seed)
     device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 
+    global N_CLASSES
     if args.synthetic:
         x_train, y_train, x_test, y_test = synthetic_dataset(args.channels, args.ticks, args.seed)
         dataset = "synthetic"
+    elif args.data_npz:
+        # Any dataset encoded the same way: x [N, channels, ticks] in {0, 1}, integer labels.
+        d = np.load(args.data_npz.expanduser())
+        x_train, y_train, x_test, y_test = d["x_train"], d["y_train"], d["x_test"], d["y_test"]
+        dataset = args.data_npz.stem
+        args.channels, args.ticks = x_train.shape[1], x_train.shape[2]
+        N_CLASSES = int(max(y_train.max(), y_test.max()) + 1)
     else:
         x_train, y_train, x_test, y_test = load_shd(
             args.data_dir.expanduser(), args.channels, args.ticks, args.t_max, args.download

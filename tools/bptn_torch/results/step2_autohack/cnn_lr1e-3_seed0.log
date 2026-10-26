@@ -1,0 +1,4 @@
+tiny    (8, 8, 8, 16, 3, 1): test float 77.19%, int8 77.75% (val int8 89.9%), 35,152 MACs, weights 4.8 KB
+small   (16, 8, 4, 32, 3, 2): test float 77.37%, int8 77.47% (val int8 92.7%), 133,792 MACs, weights 10.2 KB
+large   (64, 8, 2, 64, 3, 2): test float 76.54%, int8 76.72% (val int8 94.7%), 1,122,624 MACs, weights 45.8 KB
+Written to tools/bptn_torch/results/step2_autohack/cnn_lr1e-3_seed0.json

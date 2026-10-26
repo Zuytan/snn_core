@@ -37,7 +37,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-N_CLASSES = 20
+N_CLASSES = 20  # set from the data in main()
 # name: (c1, k1, s1, c2, k2, s2)
 CONFIGS = {
     "micro": (4, 16, 16, 16, 2, 1),
@@ -267,6 +267,8 @@ def main():
 
     device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
     data = split(args.data.expanduser(), args.seed)
+    global N_CLASSES
+    N_CLASSES = int(max(data[1].max(), data[5].max()) + 1)
     x_tr, y_tr, x_val, y_val, x_te, y_te = data
     calib = x_tr[np.random.default_rng(args.seed).permutation(len(x_tr))[:2000]]
 

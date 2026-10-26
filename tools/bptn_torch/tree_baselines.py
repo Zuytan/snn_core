@@ -31,7 +31,7 @@ from pathlib import Path
 import numpy as np
 from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
 
-N_CLASSES = 20
+N_CLASSES = 20  # set from the data in main()
 LEAF = 0xFFFF
 
 
@@ -229,6 +229,8 @@ def main():
     args = ap.parse_args()
 
     data = split(args.data.expanduser(), args.seed)
+    global N_CLASSES
+    N_CLASSES = int(max(data[1].max(), data[5].max()) + 1)
     results = []
     parse = lambda spec: [tuple(int(v) for v in c.split("x")) for c in spec.split(",") if c]
     for kind, spec in (("rf", args.rf), ("hgb", args.hgb)):

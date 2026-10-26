@@ -1,0 +1,3 @@
+hgb (25, 4)      trees   125  val  78.2  test 74.23  nodes read   500.0 (max   500)  Flash    15.3 KB  (43s)
+hgb (50, 4)      trees   250  val  81.9  test 76.41  nodes read  1000.0 (max  1000)  Flash    30.5 KB  (85s)
+Written to tools/bptn_torch/results/step2_autohack/hgb_lr0.2.json

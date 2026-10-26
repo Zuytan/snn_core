@@ -1,0 +1,54 @@
+autohack_w64: 68267 train / 7585 val / 33562 test, input 64 ch x 64 ticks, density 26.5%, 1086 active bins per sample, device mps
+
+[BP] hidden=64
+  epoch   1/40  loss 1.443  val  63.8%  (34.5s)
+  epoch   2/40  loss 0.815  val  68.4%  (33.6s)
+  epoch   3/40  loss 0.452  val  70.6%  (33.4s)
+  epoch   4/40  loss 0.840  val  72.8%  (33.3s)
+  epoch   5/40  loss 0.957  val  72.2%  (33.5s)
+  epoch   6/40  loss 0.842  val  72.2%  (33.4s)
+  epoch   7/40  loss 0.644  val  73.8%  (32.8s)
+  epoch   8/40  loss 0.560  val  73.1%  (34.0s)
+  epoch   9/40  loss 0.601  val  73.8%  (33.5s)
+  epoch  10/40  loss 0.591  val  73.9%  (33.9s)
+  epoch  11/40  loss 0.725  val  74.2%  (32.6s)
+  epoch  12/40  loss 0.561  val  75.2%  (33.2s)
+  epoch  13/40  loss 0.537  val  75.5%  (33.8s)
+  epoch  14/40  loss 0.665  val  75.3%  (33.7s)
+  epoch  15/40  loss 0.736  val  74.8%  (34.2s)
+  epoch  16/40  loss 0.588  val  73.9%  (34.2s)
+  epoch  17/40  loss 0.569  val  73.2%  (33.2s)
+  epoch  18/40  loss 0.364  val  75.1%  (34.2s)
+  epoch  19/40  loss 0.510  val  74.8%  (35.8s)
+  epoch  20/40  loss 1.068  val  75.4%  (33.3s)
+  epoch  21/40  loss 0.449  val  76.7%  (33.6s)
+  epoch  22/40  loss 0.604  val  76.0%  (33.0s)
+  epoch  23/40  loss 0.512  val  75.8%  (33.0s)
+  epoch  24/40  loss 0.437  val  77.0%  (33.6s)
+  epoch  25/40  loss 0.662  val  76.5%  (33.4s)
+  epoch  26/40  loss 0.667  val  78.2%  (33.0s)
+  epoch  27/40  loss 0.655  val  77.2%  (33.2s)
+  epoch  28/40  loss 0.460  val  77.4%  (33.0s)
+  epoch  29/40  loss 0.516  val  77.4%  (33.3s)
+  epoch  30/40  loss 0.575  val  77.2%  (33.4s)
+  epoch  31/40  loss 0.684  val  78.2%  (33.2s)
+  epoch  32/40  loss 0.382  val  78.8%  (30.7s)
+  epoch  33/40  loss 0.608  val  78.5%  (17.0s)
+  epoch  34/40  loss 0.695  val  79.4%  (17.0s)
+  epoch  35/40  loss 0.492  val  77.8%  (17.0s)
+  epoch  36/40  loss 0.439  val  79.1%  (17.1s)
+  epoch  37/40  loss 0.301  val  78.7%  (29.0s)
+  epoch  38/40  loss 0.321  val  79.2%  (33.1s)
+  epoch  39/40  loss 0.529  val  79.8%  (32.8s)
+  epoch  40/40  loss 0.304  val  80.3%  (33.2s)
+  integer reference: 74.41% (PyTorch deployed 74.41%)
+  test 74.34% (training format), 74.41% (integer, deployed)
+
+Results on autohack_w64 (seed 0, 40 epochs, hidden 64)
+model  |  test acc |  deployed |     Flash |    SRAM |  est. cycles |  est. ms |  est. uJ
+-----------------------------------------------------------------------------------------
+bp     |    74.34% |    74.41% |   20480 B |   532 B |       82,893 |     1.73 |     23.9
+
+Cycles, ms and uJ are estimates from per-operation costs measured on the Wio-E5 (48 MHz) and an
+assumed 13.86 mW; framing-buffer cost is assumed. Flash and SRAM come from the data layout.
+Results written to tools/bptn_torch/results/step2_autohack/bp256x2_lr5e-3_seed0.json

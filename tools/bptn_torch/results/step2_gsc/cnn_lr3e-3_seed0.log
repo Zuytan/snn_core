@@ -1,0 +1,4 @@
+tiny    (8, 8, 8, 16, 3, 1): test float 61.83%, int8 61.32% (val int8 63.3%), 35,632 MACs, weights 5.3 KB
+small   (16, 8, 4, 32, 3, 2): test float 71.68%, int8 71.80% (val int8 73.7%), 134,752 MACs, weights 11.3 KB
+large   (64, 8, 2, 64, 3, 2): test float 79.85%, int8 79.56% (val int8 80.7%), 1,124,544 MACs, weights 47.8 KB
+Written to tools/bptn_torch/results/step2_gsc/cnn_lr3e-3_seed0.json

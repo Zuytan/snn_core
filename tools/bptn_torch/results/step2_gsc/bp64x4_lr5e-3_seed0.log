@@ -1,0 +1,54 @@
+gsc_encoded_b64_f64: 85342 train / 9482 val / 11005 test, input 64 ch x 64 ticks, density 25.0%, 1024 active bins per sample, device mps
+
+[BP] hidden=64
+  epoch   1/40  loss 2.121  val  36.5%  (39.9s)
+  epoch   2/40  loss 2.019  val  36.9%  (60.5s)
+  epoch   3/40  loss 2.553  val  38.4%  (60.7s)
+  epoch   4/40  loss 2.099  val  39.7%  (60.8s)
+  epoch   5/40  loss 1.881  val  38.6%  (61.7s)
+  epoch   6/40  loss 1.965  val  38.9%  (61.3s)
+  epoch   7/40  loss 1.796  val  40.5%  (61.2s)
+  epoch   8/40  loss 1.676  val  41.0%  (61.6s)
+  epoch   9/40  loss 1.749  val  40.4%  (61.2s)
+  epoch  10/40  loss 1.828  val  41.2%  (61.1s)
+  epoch  11/40  loss 2.092  val  42.5%  (61.0s)
+  epoch  12/40  loss 2.404  val  43.4%  (60.4s)
+  epoch  13/40  loss 1.864  val  42.8%  (60.8s)
+  epoch  14/40  loss 1.819  val  43.7%  (61.1s)
+  epoch  15/40  loss 2.011  val  43.5%  (61.2s)
+  epoch  16/40  loss 2.084  val  44.1%  (60.6s)
+  epoch  17/40  loss 1.567  val  44.3%  (60.3s)
+  epoch  18/40  loss 1.567  val  44.8%  (61.2s)
+  epoch  19/40  loss 1.875  val  45.1%  (60.0s)
+  epoch  20/40  loss 1.754  val  45.5%  (61.1s)
+  epoch  21/40  loss 1.928  val  45.7%  (60.8s)
+  epoch  22/40  loss 2.063  val  46.3%  (57.4s)
+  epoch  23/40  loss 1.823  val  46.5%  (56.1s)
+  epoch  24/40  loss 1.996  val  46.0%  (56.3s)
+  epoch  25/40  loss 1.766  val  46.2%  (56.7s)
+  epoch  26/40  loss 1.816  val  47.7%  (56.4s)
+  epoch  27/40  loss 2.025  val  47.5%  (56.4s)
+  epoch  28/40  loss 1.597  val  48.3%  (56.2s)
+  epoch  29/40  loss 1.742  val  47.3%  (56.5s)
+  epoch  30/40  loss 1.682  val  48.7%  (56.5s)
+  epoch  31/40  loss 1.678  val  48.8%  (58.4s)
+  epoch  32/40  loss 1.846  val  49.0%  (56.9s)
+  epoch  33/40  loss 1.661  val  50.5%  (56.2s)
+  epoch  34/40  loss 1.735  val  50.8%  (54.8s)
+  epoch  35/40  loss 1.823  val  51.0%  (55.6s)
+  epoch  36/40  loss 1.546  val  50.7%  (55.7s)
+  epoch  37/40  loss 1.649  val  51.1%  (55.7s)
+  epoch  38/40  loss 1.527  val  50.9%  (55.7s)
+  epoch  39/40  loss 1.482  val  51.8%  (57.6s)
+  epoch  40/40  loss 1.743  val  53.2%  (56.3s)
+  integer reference: 52.35% (PyTorch deployed 52.41%)
+  test 52.25% (training format), 52.35% (integer, deployed)
+
+Results on gsc_encoded_b64_f64 (seed 0, 40 epochs, hidden 64)
+model  |  test acc |  deployed |     Flash |    SRAM |  est. cycles |  est. ms |  est. uJ
+-----------------------------------------------------------------------------------------
+bp     |    52.25% |    52.35% |   55040 B |   652 B |       35,046 |     0.73 |     10.1
+
+Cycles, ms and uJ are estimates from per-operation costs measured on the Wio-E5 (48 MHz) and an
+assumed 13.86 mW; framing-buffer cost is assumed. Flash and SRAM come from the data layout.
+Results written to tools/bptn_torch/results/step2_gsc/bp64x4_lr5e-3_seed0.json

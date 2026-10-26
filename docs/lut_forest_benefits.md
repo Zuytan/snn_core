@@ -70,8 +70,12 @@ compteur DWT.
 
 ## 3. Hypothèses et limites
 
-- **Un seul jeu de données, un seul encodage** (fenêtre fixe de 1 s, 64 × 64). Rien ne dit encore que
-  le gain tient sur Google Speech Commands, DVS Gesture ou une tâche CAN.
+- **Le gain ne se généralise pas (étape 2, 26 octobre 2026).** Sur Google Speech Commands (35 mots) et
+  sur le jeu CAN AutoHack, avec le même encodage 64 × 64 et le même protocole, le plus petit CNN int8
+  bat toutes les forêts essayées : 61,3 % contre 56,1 % et 77,8 % contre 74,4 %, pour un coût en
+  cycles plus faible et 8 à 10× moins de Flash. Les forêts sous-apprennent sur ces tâches, où
+  l'information est agrégée sur toute la fenêtre. Les bénéfices de ce document valent donc pour SHD,
+  pas encore au-delà.
 - **Référence int8 CMSIS-NN : partielle.** Un CNN int8 réglé de la même façon atteint 74,4 % avec
   1,12 M multiplications-accumulations, donc au moins 562 k cycles même au débit maximal de `SMLAD`
   (au moins 18× la forêt). Il est en revanche plus compact en Flash à précision plus basse (5 Ko pour
