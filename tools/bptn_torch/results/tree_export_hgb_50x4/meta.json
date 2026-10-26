@@ -1,0 +1,13 @@
+{
+  "config": [
+    50,
+    4
+  ],
+  "seed": 0,
+  "kind": "hgb",
+  "leaf_kind": "scalar_i16",
+  "nodes": 29902,
+  "trees": 1000,
+  "samples": 2264,
+  "host_integer_accuracy": 0.7204063604240283
+}

@@ -1,0 +1,68 @@
+{
+  "dataset": "SHD",
+  "args": {
+    "data_dir": "/Users/zuytan/.cache/snn_core/shd",
+    "download": "False",
+    "synthetic": "False",
+    "channels": "64",
+    "ticks": "64",
+    "t_max": "1.0",
+    "hidden": "32",
+    "epochs": "40",
+    "batch": "128",
+    "lr_binary": "0.005",
+    "lr_lif": "0.002",
+    "lif_init_gain": "4.0",
+    "lif_beta": "0.9",
+    "seed": "1",
+    "models": "bptn,bnn",
+    "lut_sizes": "2000",
+    "lut_k": "6",
+    "lut_mapping": "local",
+    "lut_tau": "None",
+    "lr_lut": "0.01",
+    "lut_learn_mapping": "False",
+    "lut_map_init": "0.0",
+    "lut_map_tau": "1.0",
+    "out": "tools/bptn_torch/results/binary_sizes/binary_h32_seed1.json"
+  },
+  "torch": "2.14.1",
+  "cost_constants": {
+    "cycles_per_window_word": 46.765625,
+    "cycles_lif_step": 17.0,
+    "cycles_synapse_int8": 18.5,
+    "cycles_framing_push_assumed": 4.0,
+    "clock_hz": 48000000,
+    "assumed_active_power_w": 0.013859999999999999
+  },
+  "results": [
+    {
+      "model": "bptn",
+      "hidden": 32,
+      "val_acc": 0.7079754601226994,
+      "test_acc_train_format": 0.640017667844523,
+      "test_acc_deployed": 0.6391342756183745,
+      "flash_bytes": 33616,
+      "sram_bytes": 596,
+      "est_cycles_per_sample": 119460.14575971731,
+      "est_ms_per_sample": 2.4887530366607775,
+      "est_uj_per_sample": 34.49411708811837,
+      "hidden_activity_per_sample": 19.73012367491166,
+      "notes": "kernel and polarity masks, 2 x 64 bits per neuron-channel; kernel density 4.4%; hidden = spikes per sample"
+    },
+    {
+      "model": "bnn",
+      "hidden": 32,
+      "val_acc": 0.6920245398773006,
+      "test_acc_train_format": 0.6391342756183745,
+      "test_acc_deployed": 0.6369257950530035,
+      "flash_bytes": 17232,
+      "sram_bytes": 596,
+      "est_cycles_per_sample": 118070.52120141343,
+      "est_ms_per_sample": 2.459802525029447,
+      "est_uj_per_sample": 34.092862996908124,
+      "hidden_activity_per_sample": 15.974381625441696,
+      "notes": "1 x 64 bits per neuron-channel; cost assumed equal to BPTN per word (XNOR + popcount)"
+    }
+  ]
+}

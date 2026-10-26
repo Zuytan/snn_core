@@ -1,0 +1,55 @@
+SHD: 7341 train / 815 val / 2264 test, input 64 ch x 64 ticks, density 26.5%, 1084 active bins per sample, device mps
+
+[BP] hidden=64
+  epoch   1/40  loss 1.396  val  59.5%  (2.4s)
+  epoch   2/40  loss 0.885  val  59.9%  (2.1s)
+  epoch   3/40  loss 1.200  val  60.1%  (2.1s)
+  epoch   4/40  loss 1.046  val  62.2%  (2.1s)
+  epoch   5/40  loss 0.740  val  65.3%  (2.1s)
+  epoch   6/40  loss 0.594  val  67.6%  (2.1s)
+  epoch   7/40  loss 0.637  val  65.9%  (2.1s)
+  epoch   8/40  loss 0.920  val  66.5%  (2.1s)
+  epoch   9/40  loss 0.449  val  67.2%  (2.1s)
+  epoch  10/40  loss 0.407  val  67.2%  (2.1s)
+  epoch  11/40  loss 0.648  val  67.0%  (2.1s)
+  epoch  12/40  loss 0.625  val  69.6%  (2.1s)
+  epoch  13/40  loss 0.455  val  70.3%  (2.1s)
+  epoch  14/40  loss 0.193  val  70.8%  (2.1s)
+  epoch  15/40  loss 0.592  val  68.7%  (2.1s)
+  epoch  16/40  loss 0.437  val  70.3%  (2.1s)
+  epoch  17/40  loss 0.398  val  73.9%  (2.1s)
+  epoch  18/40  loss 0.476  val  73.9%  (2.1s)
+  epoch  19/40  loss 0.522  val  74.0%  (2.1s)
+  epoch  20/40  loss 0.451  val  73.6%  (2.1s)
+  epoch  21/40  loss 0.142  val  73.7%  (2.1s)
+  epoch  22/40  loss 0.323  val  76.4%  (2.1s)
+  epoch  23/40  loss 0.214  val  74.5%  (2.1s)
+  epoch  24/40  loss 0.449  val  75.6%  (2.1s)
+  epoch  25/40  loss 0.218  val  74.6%  (2.1s)
+  epoch  26/40  loss 0.269  val  75.6%  (2.1s)
+  epoch  27/40  loss 0.220  val  74.2%  (2.1s)
+  epoch  28/40  loss 0.193  val  76.7%  (2.1s)
+  epoch  29/40  loss 0.253  val  77.3%  (2.1s)
+  epoch  30/40  loss 0.200  val  77.1%  (2.1s)
+  epoch  31/40  loss 0.161  val  75.6%  (2.1s)
+  epoch  32/40  loss 0.029  val  78.9%  (2.1s)
+  epoch  33/40  loss 0.196  val  78.3%  (2.1s)
+  epoch  34/40  loss 0.249  val  78.2%  (2.1s)
+  epoch  35/40  loss 0.044  val  78.8%  (2.1s)
+  epoch  36/40  loss 0.123  val  79.9%  (2.1s)
+  epoch  37/40  loss 0.037  val  78.3%  (2.1s)
+  epoch  38/40  loss 0.034  val  81.0%  (2.0s)
+  epoch  39/40  loss 0.063  val  80.6%  (2.0s)
+  epoch  40/40  loss 0.025  val  80.5%  (2.0s)
+  integer reference: 77.30% (PyTorch deployed 77.25%)
+  exported to /Users/zuytan/.cache/snn_core/bp_export_t256_d2: integer reference accuracy 77.30%, agreement with PyTorch 99.82%
+  test 77.16% (training format), 77.30% (integer, deployed)
+
+Results on SHD (seed 0, 40 epochs, hidden 64)
+model  |  test acc |  deployed |     Flash |    SRAM |  est. cycles |  est. ms |  est. uJ
+-----------------------------------------------------------------------------------------
+bp     |    77.16% |    77.30% |   35840 B |   592 B |       82,893 |     1.73 |     23.9
+
+Cycles, ms and uJ are estimates from per-operation costs measured on the Wio-E5 (48 MHz) and an
+assumed 13.86 mW; framing-buffer cost is assumed. Flash and SRAM come from the data layout.
+Results written to tools/bptn_torch/results/bp_sweep/bp_t256_d2_seed0_export.json

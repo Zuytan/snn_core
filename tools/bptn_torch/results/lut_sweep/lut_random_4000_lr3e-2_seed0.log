@@ -1,0 +1,55 @@
+SHD: 7341 train / 815 val / 2264 test, input 64 ch x 64 ticks, density 26.5%, 1084 active bins per sample, device mps
+
+[LUT] sizes=4000 k=6 random
+  epoch   1/40  loss 1.630  val  59.3%  (2.7s)
+  epoch   2/40  loss 0.944  val  60.2%  (2.5s)
+  epoch   3/40  loss 1.386  val  61.5%  (2.5s)
+  epoch   4/40  loss 1.026  val  62.2%  (2.2s)
+  epoch   5/40  loss 1.065  val  60.2%  (2.3s)
+  epoch   6/40  loss 0.895  val  59.5%  (2.2s)
+  epoch   7/40  loss 1.024  val  60.7%  (2.1s)
+  epoch   8/40  loss 1.160  val  62.6%  (2.3s)
+  epoch   9/40  loss 1.083  val  60.4%  (2.2s)
+  epoch  10/40  loss 1.034  val  61.6%  (2.3s)
+  epoch  11/40  loss 1.001  val  60.6%  (2.2s)
+  epoch  12/40  loss 1.135  val  62.6%  (2.3s)
+  epoch  13/40  loss 1.030  val  60.2%  (2.2s)
+  epoch  14/40  loss 0.966  val  60.2%  (2.3s)
+  epoch  15/40  loss 1.171  val  61.6%  (2.3s)
+  epoch  16/40  loss 1.011  val  62.5%  (2.3s)
+  epoch  17/40  loss 1.203  val  62.6%  (2.4s)
+  epoch  18/40  loss 0.894  val  62.5%  (2.1s)
+  epoch  19/40  loss 0.997  val  60.0%  (2.1s)
+  epoch  20/40  loss 1.084  val  61.7%  (2.2s)
+  epoch  21/40  loss 0.981  val  60.2%  (2.2s)
+  epoch  22/40  loss 1.022  val  62.6%  (2.2s)
+  epoch  23/40  loss 0.946  val  62.7%  (2.3s)
+  epoch  24/40  loss 0.982  val  61.0%  (2.3s)
+  epoch  25/40  loss 1.000  val  61.1%  (2.2s)
+  epoch  26/40  loss 0.974  val  61.6%  (2.2s)
+  epoch  27/40  loss 0.994  val  61.8%  (2.2s)
+  epoch  28/40  loss 1.112  val  60.9%  (2.2s)
+  epoch  29/40  loss 0.985  val  61.2%  (2.1s)
+  epoch  30/40  loss 0.985  val  61.6%  (2.3s)
+  epoch  31/40  loss 0.990  val  61.6%  (2.3s)
+  epoch  32/40  loss 0.921  val  61.7%  (2.3s)
+  epoch  33/40  loss 1.077  val  61.0%  (2.2s)
+  epoch  34/40  loss 1.115  val  61.0%  (2.1s)
+  epoch  35/40  loss 0.856  val  61.5%  (2.2s)
+  epoch  36/40  loss 1.120  val  61.7%  (2.3s)
+  epoch  37/40  loss 1.019  val  62.1%  (2.2s)
+  epoch  38/40  loss 0.947  val  60.2%  (2.3s)
+  epoch  39/40  loss 1.140  val  61.7%  (2.2s)
+  epoch  40/40  loss 1.099  val  62.2%  (2.3s)
+  LUT bit-level check: integer lookups == PyTorch model on 200 samples
+  test 62.32% (training format), 62.32% (deployed)
+
+Results on SHD (seed 0, 40 epochs, hidden 64)
+model  |  test acc |  deployed |     Flash |    SRAM |  est. cycles |  est. ms |  est. uJ
+-----------------------------------------------------------------------------------------
+lut-codegen |    62.32% |    62.32% |  388656 B |   552 B |      215,264 |     4.48 |     62.2
+lut-table |    62.32% |    62.32% |   80000 B |   552 B |      327,104 |     6.81 |     94.5
+
+Cycles, ms and uJ are estimates from per-operation costs measured on the Wio-E5 (48 MHz) and an
+assumed 13.86 mW; framing-buffer cost is assumed. Flash and SRAM come from the data layout.
+Results written to tools/bptn_torch/results/lut_sweep/lut_random_4000_lr3e-2_seed0.json

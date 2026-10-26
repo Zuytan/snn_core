@@ -1,0 +1,14 @@
+{
+  "dataset": "SHD",
+  "seed": 0,
+  "epochs": 40,
+  "lut_sizes": "2000",
+  "learned_mapping": true,
+  "test_acc_deployed_torch": 0.7195229681978799,
+  "n_luts": 2000,
+  "k": 6,
+  "words": 128,
+  "groups": 20,
+  "samples": 2264,
+  "host_integer_accuracy": 0.7195229681978799
+}

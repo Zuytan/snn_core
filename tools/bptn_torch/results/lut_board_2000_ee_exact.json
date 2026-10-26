@@ -1,0 +1,130 @@
+{
+  "kind": "lut-ee",
+  "model": {
+    "dataset": "SHD",
+    "seed": 0,
+    "epochs": 40,
+    "lut_sizes": "2000",
+    "learned_mapping": true,
+    "test_acc_deployed_torch": 0.7195229681978799,
+    "n_luts": 2000,
+    "k": 6,
+    "words": 128,
+    "groups": 20,
+    "samples": 2264,
+    "host_integer_accuracy": 0.7195229681978799
+  },
+  "board": "Wio-E5 (STM32WLE5JC)",
+  "clock_hz": 48000000,
+  "samples": 2264,
+  "board_accuracy": 0.7195229681978799,
+  "host_integer_accuracy": 0.7195229681978799,
+  "host_agreement": 1.0,
+  "cycles_min": 165364,
+  "cycles_mean": 221668.8141342756,
+  "cycles_max": 250808,
+  "us_mean": 4618.100294464075,
+  "build_env": [
+    "LUT_EE_DELTA=0",
+    "LUT_HOST_PRED=host_pred.bin"
+  ],
+  "chunks": [
+    {
+      "start": 0,
+      "samples": 320,
+      "correct": 227,
+      "host_agree": 320,
+      "cycles_min": 165364,
+      "cycles_mean": 221225.5,
+      "cycles_max": 248700,
+      "us_mean": 4608.87,
+      "clock_hz": 48000000,
+      "rounds_sum": 28993
+    },
+    {
+      "start": 320,
+      "samples": 320,
+      "correct": 227,
+      "host_agree": 320,
+      "cycles_min": 170533,
+      "cycles_mean": 221542.5,
+      "cycles_max": 248809,
+      "us_mean": 4615.47,
+      "clock_hz": 48000000,
+      "rounds_sum": 28674
+    },
+    {
+      "start": 640,
+      "samples": 320,
+      "correct": 231,
+      "host_agree": 320,
+      "cycles_min": 167719,
+      "cycles_mean": 220341.3,
+      "cycles_max": 248474,
+      "us_mean": 4590.44,
+      "clock_hz": 48000000,
+      "rounds_sum": 28519
+    },
+    {
+      "start": 960,
+      "samples": 320,
+      "correct": 234,
+      "host_agree": 320,
+      "cycles_min": 165502,
+      "cycles_mean": 223788.6,
+      "cycles_max": 249979,
+      "us_mean": 4662.26,
+      "clock_hz": 48000000,
+      "rounds_sum": 28957
+    },
+    {
+      "start": 1280,
+      "samples": 320,
+      "correct": 229,
+      "host_agree": 320,
+      "cycles_min": 172667,
+      "cycles_mean": 223258.0,
+      "cycles_max": 248402,
+      "us_mean": 4651.21,
+      "clock_hz": 48000000,
+      "rounds_sum": 28882
+    },
+    {
+      "start": 1600,
+      "samples": 320,
+      "correct": 228,
+      "host_agree": 320,
+      "cycles_min": 167871,
+      "cycles_mean": 221954.2,
+      "cycles_max": 250808,
+      "us_mean": 4624.05,
+      "clock_hz": 48000000,
+      "rounds_sum": 28715
+    },
+    {
+      "start": 1920,
+      "samples": 320,
+      "correct": 234,
+      "host_agree": 320,
+      "cycles_min": 168179,
+      "cycles_mean": 219704.8,
+      "cycles_max": 248593,
+      "us_mean": 4577.18,
+      "clock_hz": 48000000,
+      "rounds_sum": 28438
+    },
+    {
+      "start": 2240,
+      "samples": 24,
+      "correct": 19,
+      "host_agree": 24,
+      "cycles_min": 188244,
+      "cycles_mean": 219892.8,
+      "cycles_max": 244843,
+      "us_mean": 4581.1,
+      "clock_hz": 48000000,
+      "rounds_sum": 2156
+    }
+  ],
+  "rounds_mean": 89.81183745583039
+}

@@ -1,0 +1,68 @@
+{
+  "dataset": "SHD",
+  "args": {
+    "data_dir": "/Users/zuytan/.cache/snn_core/shd",
+    "download": "False",
+    "synthetic": "False",
+    "channels": "64",
+    "ticks": "64",
+    "t_max": "1.0",
+    "hidden": "64",
+    "epochs": "40",
+    "batch": "128",
+    "lr_binary": "0.005",
+    "lr_lif": "0.002",
+    "lif_init_gain": "4.0",
+    "lif_beta": "0.9",
+    "seed": "1",
+    "models": "lut",
+    "lut_sizes": "1000",
+    "lut_k": "6",
+    "lut_mapping": "random",
+    "lut_tau": "None",
+    "lr_lut": "0.01",
+    "lut_learn_mapping": "True",
+    "lut_map_init": "0.0",
+    "lut_map_tau": "1.0",
+    "out": "tools/bptn_torch/results/lut_learned/lut_learned_1000_seed1.json"
+  },
+  "torch": "2.14.1",
+  "cost_constants": {
+    "cycles_per_window_word": 46.765625,
+    "cycles_lif_step": 17.0,
+    "cycles_synapse_int8": 18.5,
+    "cycles_framing_push_assumed": 4.0,
+    "clock_hz": 48000000,
+    "assumed_active_power_w": 0.013859999999999999
+  },
+  "results": [
+    {
+      "model": "lut-codegen",
+      "hidden": 1000,
+      "val_acc": 0.7398773006134969,
+      "test_acc_train_format": 0.678886925795053,
+      "test_acc_deployed": 0.678886925795053,
+      "flash_bytes": 97164,
+      "sram_bytes": 552,
+      "est_cycles_per_sample": 66104.0,
+      "est_ms_per_sample": 1.3771666666666667,
+      "est_uj_per_sample": 19.087529999999997,
+      "hidden_activity_per_sample": 269.7106890459364,
+      "notes": "layers 1000, k=6, random initial mapping, learned, group-sum readout; per-LUT cost and Flash measured on the Wio-E5 for k=6 (generated code)"
+    },
+    {
+      "model": "lut-table",
+      "hidden": 1000,
+      "val_acc": 0.7398773006134969,
+      "test_acc_train_format": 0.678886925795053,
+      "test_acc_deployed": 0.678886925795053,
+      "flash_bytes": 20000,
+      "sram_bytes": 552,
+      "est_cycles_per_sample": 94064.0,
+      "est_ms_per_sample": 1.959666666666667,
+      "est_uj_per_sample": 27.160980000000002,
+      "hidden_activity_per_sample": 269.7106890459364,
+      "notes": "layers 1000, k=6, random initial mapping, learned, group-sum readout; per-LUT cost and Flash measured on the Wio-E5 for k=6 (address table)"
+    }
+  ]
+}

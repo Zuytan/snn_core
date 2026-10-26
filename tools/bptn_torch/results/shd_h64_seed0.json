@@ -1,0 +1,88 @@
+{
+  "dataset": "SHD",
+  "args": {
+    "data_dir": "/Users/zuytan/.cache/snn_core/shd",
+    "download": "False",
+    "synthetic": "False",
+    "channels": "64",
+    "ticks": "64",
+    "t_max": "1.0",
+    "hidden": "64",
+    "epochs": "40",
+    "batch": "128",
+    "lr_binary": "0.005",
+    "lr_lif": "0.002",
+    "lif_init_gain": "4.0",
+    "lif_beta": "0.9",
+    "seed": "0",
+    "models": "bptn,bnn,lif,rlif",
+    "out": "tools/bptn_torch/results/shd_h64_seed0.json"
+  },
+  "torch": "2.14.1",
+  "cost_constants": {
+    "cycles_per_window_word": 46.765625,
+    "cycles_lif_step": 17.0,
+    "cycles_synapse_int8": 18.5,
+    "cycles_framing_push_assumed": 4.0,
+    "clock_hz": 48000000,
+    "assumed_active_power_w": 0.013859999999999999
+  },
+  "results": [
+    {
+      "model": "bptn",
+      "hidden": 64,
+      "val_acc": 0.7828220858895706,
+      "test_acc_train_format": 0.6881625441696113,
+      "test_acc_deployed": 0.6894876325088339,
+      "flash_bytes": 67152,
+      "sram_bytes": 600,
+      "est_cycles_per_sample": 222073.3012367491,
+      "est_ms_per_sample": 4.62652710909894,
+      "est_uj_per_sample": 64.1236657321113,
+      "hidden_activity_per_sample": 38.2089222614841,
+      "notes": "kernel and polarity masks, 2 x 64 bits per neuron-channel; kernel density 4.0%; hidden = spikes per sample"
+    },
+    {
+      "model": "bnn",
+      "hidden": 64,
+      "val_acc": 0.7496932515337423,
+      "test_acc_train_format": 0.6925795053003534,
+      "test_acc_deployed": 0.6925795053003534,
+      "flash_bytes": 34384,
+      "sram_bytes": 600,
+      "est_cycles_per_sample": 220358.29240282686,
+      "est_ms_per_sample": 4.590797758392227,
+      "est_uj_per_sample": 63.62845693131625,
+      "hidden_activity_per_sample": 33.573763250883395,
+      "notes": "1 x 64 bits per neuron-channel; cost assumed equal to BPTN per word (XNOR + popcount)"
+    },
+    {
+      "model": "lif",
+      "hidden": 64,
+      "val_acc": 0.5840490797546012,
+      "test_acc_train_format": 0.6037985865724381,
+      "test_acc_deployed": 0.6042402826855123,
+      "flash_bytes": 5968,
+      "sram_bytes": 912,
+      "est_cycles_per_sample": 1376478.2756183746,
+      "est_ms_per_sample": 28.676630742049472,
+      "est_uj_per_sample": 397.45810208480566,
+      "hidden_activity_per_sample": 1602.118816254417,
+      "notes": "int8 input weights; hidden = total hidden spikes per sample"
+    },
+    {
+      "model": "rlif",
+      "hidden": 64,
+      "val_acc": 0.5865030674846625,
+      "test_acc_train_format": 0.5976148409893993,
+      "test_acc_deployed": 0.5958480565371025,
+      "flash_bytes": 10064,
+      "sram_bytes": 912,
+      "est_cycles_per_sample": 3248298.6007067137,
+      "est_ms_per_sample": 67.67288751472321,
+      "est_uj_per_sample": 937.9462209540636,
+      "hidden_activity_per_sample": 1580.929328621908,
+      "notes": "int8 weights (recurrent H x H included); hidden = total hidden spikes per sample"
+    }
+  ]
+}

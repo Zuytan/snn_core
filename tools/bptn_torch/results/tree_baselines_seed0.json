@@ -1,0 +1,201 @@
+{
+  "seed": 0,
+  "results": [
+    {
+      "kind": "rf",
+      "config": [
+        64,
+        8
+      ],
+      "trees": 64,
+      "val_acc": 0.5914110429447853,
+      "test_acc": 0.5971731448763251,
+      "nodes_visited_mean": 510.53136042402826,
+      "nodes_visited_max": 512,
+      "flash_bytes": 357492,
+      "train_s": 0.5465400218963623
+    },
+    {
+      "kind": "rf",
+      "config": [
+        128,
+        8
+      ],
+      "trees": 128,
+      "val_acc": 0.6,
+      "test_acc": 0.6060070671378092,
+      "nodes_visited_mean": 1021.1417844522969,
+      "nodes_visited_max": 1024,
+      "flash_bytes": 712018,
+      "train_s": 0.9070320129394531
+    },
+    {
+      "kind": "rf",
+      "config": [
+        256,
+        8
+      ],
+      "trees": 256,
+      "val_acc": 0.6122699386503068,
+      "test_acc": 0.6090989399293286,
+      "nodes_visited_mean": 2042.3016784452298,
+      "nodes_visited_max": 2048,
+      "flash_bytes": 1427726,
+      "train_s": 1.7702620029449463
+    },
+    {
+      "kind": "rf",
+      "config": [
+        64,
+        12
+      ],
+      "trees": 64,
+      "val_acc": 0.7067484662576687,
+      "test_acc": 0.6669611307420494,
+      "nodes_visited_mean": 731.7508833922261,
+      "nodes_visited_max": 768,
+      "flash_bytes": 1630348,
+      "train_s": 1.1416330337524414
+    },
+    {
+      "kind": "rf",
+      "config": [
+        128,
+        12
+      ],
+      "trees": 128,
+      "val_acc": 0.7361963190184049,
+      "test_acc": 0.6846289752650176,
+      "nodes_visited_mean": 1463.083038869258,
+      "nodes_visited_max": 1536,
+      "flash_bytes": 3259628,
+      "train_s": 2.19392991065979
+    },
+    {
+      "kind": "rf",
+      "config": [
+        256,
+        12
+      ],
+      "trees": 256,
+      "val_acc": 0.7447852760736197,
+      "test_acc": 0.691696113074205,
+      "nodes_visited_mean": 2927.059187279152,
+      "nodes_visited_max": 3072,
+      "flash_bytes": 6494996,
+      "train_s": 4.32175087928772
+    },
+    {
+      "kind": "rf",
+      "config": [
+        128,
+        16
+      ],
+      "trees": 128,
+      "val_acc": 0.7631901840490798,
+      "test_acc": 0.7036219081272085,
+      "nodes_visited_mean": 1708.428886925795,
+      "nodes_visited_max": 2010,
+      "flash_bytes": 5856352,
+      "train_s": 3.4501960277557373
+    },
+    {
+      "kind": "rf",
+      "config": [
+        256,
+        16
+      ],
+      "trees": 256,
+      "val_acc": 0.7815950920245399,
+      "test_acc": 0.7164310954063604,
+      "nodes_visited_mean": 3415.745141342756,
+      "nodes_visited_max": 4018,
+      "flash_bytes": 11687820,
+      "train_s": 6.879627704620361
+    },
+    {
+      "kind": "hgb",
+      "config": [
+        10,
+        4
+      ],
+      "trees": 200,
+      "val_acc": 0.6,
+      "test_acc": 0.6046819787985865,
+      "nodes_visited_mean": 799.5817137809187,
+      "nodes_visited_max": 800,
+      "flash_bytes": 24040,
+      "train_s": 11.162802934646606
+    },
+    {
+      "kind": "hgb",
+      "config": [
+        25,
+        4
+      ],
+      "trees": 500,
+      "val_acc": 0.7092024539877301,
+      "test_acc": 0.6797703180212014,
+      "nodes_visited_mean": 1999.082597173145,
+      "nodes_visited_max": 2000,
+      "flash_bytes": 60060,
+      "train_s": 26.145721673965454
+    },
+    {
+      "kind": "hgb",
+      "config": [
+        50,
+        4
+      ],
+      "trees": 1000,
+      "val_acc": 0.7668711656441718,
+      "test_acc": 0.7204063604240283,
+      "nodes_visited_mean": 3998.3652826855123,
+      "nodes_visited_max": 4000,
+      "flash_bytes": 120688,
+      "train_s": 52.189821004867554
+    },
+    {
+      "kind": "hgb",
+      "config": [
+        100,
+        4
+      ],
+      "trees": 2000,
+      "val_acc": 0.8134969325153374,
+      "test_acc": 0.75,
+      "nodes_visited_mean": 7997.096289752651,
+      "nodes_visited_max": 8000,
+      "flash_bytes": 242528,
+      "train_s": 102.78369402885437
+    },
+    {
+      "kind": "hgb",
+      "config": [
+        25,
+        6
+      ],
+      "trees": 500,
+      "val_acc": 0.7423312883435583,
+      "test_acc": 0.6890459363957597,
+      "nodes_visited_mean": 2365.844522968198,
+      "nodes_visited_max": 2553,
+      "flash_bytes": 122308,
+      "train_s": 46.77850914001465
+    },
+    {
+      "kind": "hgb",
+      "config": [
+        50,
+        6
+      ],
+      "trees": 1000,
+      "val_acc": 0.7877300613496933,
+      "test_acc": 0.7292402826855123,
+      "nodes_visited_mean": 4822.904593639576,
+      "nodes_visited_max": 5150,
+      "flash_bytes": 244784,
+      "train_s": 104.38971972465515
+    }
+  ]
+}

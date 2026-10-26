@@ -1,0 +1,161 @@
+{
+  "kind": "tree",
+  "model": {
+    "config": [
+      50,
+      4
+    ],
+    "seed": 0,
+    "kind": "hgb",
+    "leaf_kind": "scalar_i16",
+    "nodes": 29902,
+    "trees": 1000,
+    "samples": 2264,
+    "host_integer_accuracy": 0.7204063604240283
+  },
+  "board": "Wio-E5 (STM32WLE5JC)",
+  "clock_hz": 48000000,
+  "samples": 2264,
+  "board_accuracy": 0.7204063604240283,
+  "host_integer_accuracy": 0.7204063604240283,
+  "host_agreement": 1.0,
+  "cycles_min": 143640,
+  "cycles_mean": 146371.31201413425,
+  "cycles_max": 160941,
+  "us_mean": 3049.402333627797,
+  "build_env": [],
+  "chunks": [
+    {
+      "start": 0,
+      "samples": 200,
+      "correct": 146,
+      "host_agree": 200,
+      "cycles_min": 144903,
+      "cycles_mean": 145972.6,
+      "cycles_max": 146323,
+      "us_mean": 3041.1,
+      "clock_hz": 48000000
+    },
+    {
+      "start": 200,
+      "samples": 200,
+      "correct": 138,
+      "host_agree": 200,
+      "cycles_min": 143640,
+      "cycles_mean": 145938.2,
+      "cycles_max": 146291,
+      "us_mean": 3040.38,
+      "clock_hz": 48000000
+    },
+    {
+      "start": 400,
+      "samples": 200,
+      "correct": 144,
+      "host_agree": 200,
+      "cycles_min": 144966,
+      "cycles_mean": 145950.4,
+      "cycles_max": 146347,
+      "us_mean": 3040.63,
+      "clock_hz": 48000000
+    },
+    {
+      "start": 600,
+      "samples": 200,
+      "correct": 142,
+      "host_agree": 200,
+      "cycles_min": 145407,
+      "cycles_mean": 145972.6,
+      "cycles_max": 146373,
+      "us_mean": 3041.1,
+      "clock_hz": 48000000
+    },
+    {
+      "start": 800,
+      "samples": 200,
+      "correct": 142,
+      "host_agree": 200,
+      "cycles_min": 145348,
+      "cycles_mean": 145956.5,
+      "cycles_max": 146246,
+      "us_mean": 3040.76,
+      "clock_hz": 48000000
+    },
+    {
+      "start": 1000,
+      "samples": 200,
+      "correct": 139,
+      "host_agree": 200,
+      "cycles_min": 145417,
+      "cycles_mean": 145940.9,
+      "cycles_max": 146307,
+      "us_mean": 3040.43,
+      "clock_hz": 48000000
+    },
+    {
+      "start": 1200,
+      "samples": 200,
+      "correct": 144,
+      "host_agree": 200,
+      "cycles_min": 145367,
+      "cycles_mean": 145948.5,
+      "cycles_max": 146275,
+      "us_mean": 3040.59,
+      "clock_hz": 48000000
+    },
+    {
+      "start": 1400,
+      "samples": 200,
+      "correct": 149,
+      "host_agree": 200,
+      "cycles_min": 145415,
+      "cycles_mean": 145953.1,
+      "cycles_max": 146325,
+      "us_mean": 3040.69,
+      "clock_hz": 48000000
+    },
+    {
+      "start": 1600,
+      "samples": 200,
+      "correct": 136,
+      "host_agree": 200,
+      "cycles_min": 144540,
+      "cycles_mean": 145954.8,
+      "cycles_max": 146298,
+      "us_mean": 3040.73,
+      "clock_hz": 48000000
+    },
+    {
+      "start": 1800,
+      "samples": 200,
+      "correct": 153,
+      "host_agree": 200,
+      "cycles_min": 145458,
+      "cycles_mean": 145952.2,
+      "cycles_max": 146287,
+      "us_mean": 3040.67,
+      "clock_hz": 48000000
+    },
+    {
+      "start": 2000,
+      "samples": 200,
+      "correct": 151,
+      "host_agree": 200,
+      "cycles_min": 145381,
+      "cycles_mean": 145961.5,
+      "cycles_max": 146356,
+      "us_mean": 3040.86,
+      "clock_hz": 48000000
+    },
+    {
+      "start": 2200,
+      "samples": 64,
+      "correct": 47,
+      "host_agree": 64,
+      "cycles_min": 160068,
+      "cycles_mean": 160693.6,
+      "cycles_max": 160941,
+      "us_mean": 3347.78,
+      "clock_hz": 48000000
+    }
+  ]
+}

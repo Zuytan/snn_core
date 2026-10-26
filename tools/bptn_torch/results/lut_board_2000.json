@@ -1,0 +1,116 @@
+{
+  "model": {
+    "dataset": "SHD",
+    "seed": 0,
+    "epochs": 40,
+    "lut_sizes": "2000",
+    "learned_mapping": true,
+    "test_acc_deployed_torch": 0.7195229681978799,
+    "n_luts": 2000,
+    "k": 6,
+    "words": 128,
+    "groups": 20,
+    "samples": 2264,
+    "host_integer_accuracy": 0.7195229681978799
+  },
+  "board": "Wio-E5 (STM32WLE5JC)",
+  "clock_hz": 48000000,
+  "samples": 2264,
+  "board_accuracy": 0.7195229681978799,
+  "host_integer_accuracy": 0.7195229681978799,
+  "host_agreement": 1.0,
+  "cycles_min": 221891,
+  "cycles_mean": 223790.75512367493,
+  "cycles_max": 227999,
+  "us_mean": 4662.307398409895,
+  "chunks": [
+    {
+      "start": 0,
+      "samples": 320,
+      "correct": 227,
+      "host_agree": 320,
+      "cycles_min": 221891,
+      "cycles_mean": 223762.0,
+      "cycles_max": 226883,
+      "us_mean": 4661.71,
+      "clock_hz": 48000000
+    },
+    {
+      "start": 320,
+      "samples": 320,
+      "correct": 227,
+      "host_agree": 320,
+      "cycles_min": 221891,
+      "cycles_mean": 223743.2,
+      "cycles_max": 226883,
+      "us_mean": 4661.32,
+      "clock_hz": 48000000
+    },
+    {
+      "start": 640,
+      "samples": 320,
+      "correct": 231,
+      "host_agree": 320,
+      "cycles_min": 221891,
+      "cycles_mean": 223724.5,
+      "cycles_max": 226883,
+      "us_mean": 4660.93,
+      "clock_hz": 48000000
+    },
+    {
+      "start": 960,
+      "samples": 320,
+      "correct": 234,
+      "host_agree": 320,
+      "cycles_min": 221891,
+      "cycles_mean": 223737.0,
+      "cycles_max": 226883,
+      "us_mean": 4661.19,
+      "clock_hz": 48000000
+    },
+    {
+      "start": 1280,
+      "samples": 320,
+      "correct": 229,
+      "host_agree": 320,
+      "cycles_min": 221891,
+      "cycles_mean": 223749.5,
+      "cycles_max": 226883,
+      "us_mean": 4661.45,
+      "clock_hz": 48000000
+    },
+    {
+      "start": 1600,
+      "samples": 320,
+      "correct": 228,
+      "host_agree": 320,
+      "cycles_min": 221891,
+      "cycles_mean": 223774.5,
+      "cycles_max": 226883,
+      "us_mean": 4661.97,
+      "clock_hz": 48000000
+    },
+    {
+      "start": 1920,
+      "samples": 320,
+      "correct": 234,
+      "host_agree": 320,
+      "cycles_min": 221891,
+      "cycles_mean": 223768.2,
+      "cycles_max": 226883,
+      "us_mean": 4661.84,
+      "clock_hz": 48000000
+    },
+    {
+      "start": 2240,
+      "samples": 24,
+      "correct": 19,
+      "host_agree": 24,
+      "cycles_min": 225975,
+      "cycles_mean": 227475.9,
+      "cycles_max": 227999,
+      "us_mean": 4739.08,
+      "clock_hz": 48000000
+    }
+  ]
+}

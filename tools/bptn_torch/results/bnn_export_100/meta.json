@@ -1,0 +1,13 @@
+{
+  "dataset": "SHD",
+  "seed": 0,
+  "epochs": 40,
+  "hidden": 100,
+  "test_acc_deployed_torch": 0.7168727915194346,
+  "inputs": 4096,
+  "words": 128,
+  "groups": 20,
+  "samples": 2264,
+  "host_integer_accuracy": 0.7168727915194346,
+  "torch_integer_agreement": 1.0
+}

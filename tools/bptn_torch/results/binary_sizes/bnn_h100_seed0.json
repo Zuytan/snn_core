@@ -1,0 +1,56 @@
+{
+  "dataset": "SHD",
+  "args": {
+    "data_dir": "/Users/zuytan/.cache/snn_core/shd",
+    "download": "False",
+    "synthetic": "False",
+    "channels": "64",
+    "ticks": "64",
+    "t_max": "1.0",
+    "hidden": "100",
+    "epochs": "40",
+    "batch": "128",
+    "lr_binary": "0.005",
+    "lr_lif": "0.002",
+    "lif_init_gain": "4.0",
+    "lif_beta": "0.9",
+    "seed": "0",
+    "models": "bnn",
+    "lut_sizes": "2000",
+    "lut_k": "6",
+    "lut_mapping": "local",
+    "lut_tau": "None",
+    "lr_lut": "0.01",
+    "lut_learn_mapping": "False",
+    "lut_map_init": "0.0",
+    "lut_map_tau": "1.0",
+    "out": "tools/bptn_torch/results/binary_sizes/bnn_h100_seed0.json",
+    "export_lut": "None",
+    "export_bnn": "/Users/zuytan/.cache/snn_core/bnn_export_100"
+  },
+  "torch": "2.14.1",
+  "cost_constants": {
+    "cycles_per_window_word": 46.765625,
+    "cycles_lif_step": 17.0,
+    "cycles_synapse_int8": 18.5,
+    "cycles_framing_push_assumed": 4.0,
+    "clock_hz": 48000000,
+    "assumed_active_power_w": 0.013859999999999999
+  },
+  "results": [
+    {
+      "model": "bnn",
+      "hidden": 100,
+      "val_acc": 0.7926380368098159,
+      "test_acc_train_format": 0.7159893992932862,
+      "test_acc_deployed": 0.7168727915194346,
+      "flash_bytes": 53680,
+      "sram_bytes": 605,
+      "est_cycles_per_sample": 332826.5706713781,
+      "est_ms_per_sample": 6.933886888987044,
+      "est_uj_per_sample": 96.10367228136042,
+      "hidden_activity_per_sample": 46.331272084805654,
+      "notes": "1 x 64 bits per neuron-channel; cost assumed equal to BPTN per word (XNOR + popcount)"
+    }
+  ]
+}
