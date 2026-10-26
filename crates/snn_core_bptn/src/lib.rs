@@ -16,6 +16,8 @@
 //! - Membrane integration via hardware bit counting (`POPCNT` in 1 cycle).
 //! - 100% branchless execution, zero dynamic allocation (`no_std`).
 
+#![no_std]
+
 use snn_core::Fix32;
 use snn_core::SpikingNetwork;
 
