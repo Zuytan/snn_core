@@ -1,0 +1,35 @@
+{
+  "seed": 0,
+  "results": [
+    {
+      "kind": "hgb",
+      "config": [
+        25,
+        4
+      ],
+      "trees": 500,
+      "hgb_lr": 0.2,
+      "val_acc": 0.7153374233128834,
+      "test_acc": 0.6925795053003534,
+      "nodes_visited_mean": 1999.196113074205,
+      "nodes_visited_max": 2000,
+      "flash_bytes": 60436,
+      "train_s": 28.192801237106323
+    },
+    {
+      "kind": "hgb",
+      "config": [
+        50,
+        4
+      ],
+      "trees": 1000,
+      "hgb_lr": 0.2,
+      "val_acc": 0.7840490797546013,
+      "test_acc": 0.7314487632508834,
+      "nodes_visited_mean": 3998.5150176678444,
+      "nodes_visited_max": 4000,
+      "flash_bytes": 121360,
+      "train_s": 53.55804896354675
+    }
+  ]
+}

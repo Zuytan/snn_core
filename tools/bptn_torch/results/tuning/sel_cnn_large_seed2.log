@@ -1,0 +1,2 @@
+large   (64, 8, 2, 64, 3, 2): test float 74.34%, int8 74.25% (val int8 86.7%), 1,123,584 MACs, weights 46.8 KB
+Written to tools/bptn_torch/results/tuning/sel_cnn_large_seed2.json

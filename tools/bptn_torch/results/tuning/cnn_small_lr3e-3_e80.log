@@ -1,0 +1,2 @@
+small   (16, 8, 4, 32, 3, 2): test float 68.77%, int8 68.15% (val int8 75.7%), 134,272 MACs, weights 10.8 KB
+Written to tools/bptn_torch/results/tuning/cnn_small_lr3e-3_e80.json

@@ -72,8 +72,10 @@ compteur DWT.
 
 - **Un seul jeu de données, un seul encodage** (fenêtre fixe de 1 s, 64 × 64). Rien ne dit encore que
   le gain tient sur Google Speech Commands, DVS Gesture ou une tâche CAN.
-- **La référence int8 CMSIS-NN manque** : un petit réseau convolutif utilisant `SMLAD` sur la même
-  entrée pourrait être compétitif.
+- **Référence int8 CMSIS-NN : partielle.** Un CNN int8 réglé de la même façon atteint 74,4 % avec
+  1,12 M multiplications-accumulations, donc au moins 562 k cycles même au débit maximal de `SMLAD`
+  (au moins 18× la forêt). Il est en revanche plus compact en Flash à précision plus basse (5 Ko pour
+  66,6 %). Ses cycles sur la carte restent à mesurer.
 - **Loin de l'état de l'art en précision** : les meilleurs modèles publiés sur SHD dépassent
   largement 75 %, à un coût bien plus élevé. Le résultat porte sur l'efficacité, pas sur la
   précision maximale.

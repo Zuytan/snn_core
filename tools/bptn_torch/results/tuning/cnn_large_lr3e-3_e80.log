@@ -1,0 +1,2 @@
+large   (64, 8, 2, 64, 3, 2): test float 72.66%, int8 72.75% (val int8 83.7%), 1,123,584 MACs, weights 46.8 KB
+Written to tools/bptn_torch/results/tuning/cnn_large_lr3e-3_e80.json

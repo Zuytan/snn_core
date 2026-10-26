@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/Users/zuytan/Documents/Developpement/Projets Perso/snn_core/tools/bptn_torch/tree_baselines.py", line 246, in <module>
+    main()
+  File "/Users/zuytan/Documents/Developpement/Projets Perso/snn_core/tools/bptn_torch/tree_baselines.py", line 236, in main
+    res, model, _ = run(kind, cfg, data, args.seed, args.hgb_lr)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/zuytan/Documents/Developpement/Projets Perso/snn_core/tools/bptn_torch/tree_baselines.py", line 170, in run
+    pred_val, _, _ = integer(model, x_val)
+                     ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/zuytan/Documents/Developpement/Projets Perso/snn_core/tools/bptn_torch/tree_baselines.py", line 130, in hgb_integer
+    assert (scores[:256].argmax(1) == raw.argmax(1)).mean() > 0.99, "integer boosting model disagrees with sklearn"
+AssertionError: integer boosting model disagrees with sklearn

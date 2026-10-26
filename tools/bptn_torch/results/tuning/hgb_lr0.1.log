@@ -1,0 +1,3 @@
+hgb (25, 4)      trees   500  val  70.9  test 67.98  nodes read  1999.1 (max  2000)  Flash    58.7 KB  (27s)
+hgb (50, 4)      trees  1000  val  76.7  test 72.04  nodes read  3998.4 (max  4000)  Flash   117.9 KB  (53s)
+Written to tools/bptn_torch/results/tuning/hgb_lr0.1.json

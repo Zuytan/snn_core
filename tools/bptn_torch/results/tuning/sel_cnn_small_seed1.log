@@ -1,0 +1,2 @@
+small   (16, 8, 4, 32, 3, 2): test float 70.01%, int8 69.39% (val int8 78.0%), 134,272 MACs, weights 10.8 KB
+Written to tools/bptn_torch/results/tuning/sel_cnn_small_seed1.json
