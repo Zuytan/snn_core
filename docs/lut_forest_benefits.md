@@ -74,8 +74,10 @@ compteur DWT.
   sur le jeu CAN AutoHack, avec le même encodage 64 × 64 et le même protocole, le plus petit CNN int8
   bat toutes les forêts essayées : 61,3 % contre 56,1 % et 77,8 % contre 74,4 %, pour un coût en
   cycles plus faible et 8 à 10× moins de Flash. Les forêts sous-apprennent sur ces tâches, où
-  l'information est agrégée sur toute la fenêtre. Les bénéfices de ce document valent donc pour SHD,
-  pas encore au-delà.
+  l'information est agrégée sur toute la fenêtre. Une couche d'agrégation placée avant la forêt
+  (comptages par canal) la remet au niveau du petit CNN sur le CAN (78,1 %), mais le gradient
+  boosting fait aussi bien avec la même entrée et environ 2× moins de cycles, et l'agrégation n'aide
+  pas sur Speech Commands. Les bénéfices de ce document valent donc pour SHD, pas au-delà.
 - **Référence int8 CMSIS-NN : partielle.** Un CNN int8 réglé de la même façon atteint 74,4 % avec
   1,12 M multiplications-accumulations, donc au moins 562 k cycles même au débit maximal de `SMLAD`
   (au moins 18× la forêt). Il est en revanche plus compact en Flash à précision plus basse (5 Ko pour
