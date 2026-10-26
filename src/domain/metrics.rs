@@ -3,12 +3,24 @@
 //! Aligned with international benchmarking criteria (**NeuroBench**, **TinyML / MLCommons**):
 //! - **SynOps**: Synaptic operations distinguished into `AC` (Accumulate without multiplication) vs `MAC` (dense Multiply-Accumulate).
 //! - **Sparsity**: Spatio-temporal neuronal inactivity ratio ($1 - \text{spikes}/(N \times T)$).
-//! - **CMOS Energy Estimation**: Physical model based on standard silicon technology (40 nm / 28 nm).
+//! - **CPU energy estimate**: cycles × active power / clock frequency ([`EnergyEstimator::cpu_active_nanojoules`]).
+//!   This is an estimate from a power figure, not a measurement; measure energy with a current probe.
 //! - **Event-driven Latency**: *Latency to First Spike* & *Time-to-Decision* (TTD).
+//!
+//! The per-operation energy model ([`HardwareProfile`], `estimate_picojoules*`) is deprecated: its
+//! constants (0.1 pJ per AC, 3.1 pJ per MAC) describe dedicated neuromorphic silicon, not a
+//! microcontroller, and its Cortex-M4 constants were never measured.
+
+// The deprecated per-operation energy model below is still implemented and tested here until it is removed.
+#![allow(deprecated)]
 
 use crate::domain::numeric::Fix32;
 
 /// Reference hardware energy constants (CMOS 40 nm / 28 nm technology).
+#[deprecated(
+    since = "0.5.0",
+    note = "ASIC constants, not valid for a microcontroller; use `EnergyEstimator::cpu_active_nanojoules`"
+)]
 pub mod energy_constants {
     /// Energy per pure accumulate (AC) event-driven synaptic operation (in picojoules: ~0.1 pJ).
     pub const ENERGY_AC_PICOJOULES_X10: u64 = 1; // 0.1 pJ represented with x10 scale
@@ -119,6 +131,10 @@ impl SparsityMeter {
 }
 
 /// Target hardware profiles for energy evaluation.
+#[deprecated(
+    since = "0.5.0",
+    note = "per-operation constants are not measurements; use `EnergyEstimator::cpu_active_nanojoules`"
+)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum HardwareProfile {
     /// Dedicated neuromorphic silicon accelerator CMOS 40 nm / 28 nm (Loihi, SynSense, Dynap-SE).
@@ -129,17 +145,53 @@ pub enum HardwareProfile {
     EmbeddedMcuCortexM4,
 }
 
-/// Physical energy estimator for integrated CMOS circuits and embedded microcontrollers.
+/// Energy estimates. None of them is a measurement.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct EnergyEstimator;
 
 impl EnergyEstimator {
+    /// Estimates the CPU-active energy of a computation in nanojoules:
+    /// `cycles × active_power / clock`.
+    ///
+    /// `active_power_uw` is the active power of the MCU in microwatts (for example supply voltage ×
+    /// run-mode current from the datasheet, or better a value measured on the board). The result
+    /// excludes sleep current, wake-ups, sensors and radio. Returns 0 when `clock_hz` is 0.
+    ///
+    /// ```
+    /// use snn_core::metrics::EnergyEstimator;
+    /// // 11,972 cycles at 48 MHz and 13.86 mW (3.3 V × 4.2 mA): about 3.46 µJ.
+    /// assert_eq!(EnergyEstimator::cpu_active_nanojoules(11_972, 13_860, 48_000_000), 3_456);
+    /// ```
+    pub const fn cpu_active_nanojoules(cycles: u64, active_power_uw: u64, clock_hz: u64) -> u64 {
+        if clock_hz == 0 {
+            return 0;
+        }
+        // cycles / clock_hz [s] × active_power_uw [µW] = µJ; × 1000 = nJ.
+        let nj = (cycles as u128)
+            .saturating_mul(active_power_uw as u128)
+            .saturating_mul(1000)
+            / (clock_hz as u128);
+        if nj > u64::MAX as u128 {
+            u64::MAX
+        } else {
+            nj as u64
+        }
+    }
+
     /// Estimates total energy consumed by SynOps in picojoules (pJ) using default 40nm ASIC profile.
+    #[deprecated(
+        since = "0.5.0",
+        note = "ASIC constants, not valid for a microcontroller; use `EnergyEstimator::cpu_active_nanojoules`"
+    )]
     pub fn estimate_picojoules(synops: &SynOpsTracker) -> u64 {
         Self::estimate_picojoules_with_profile(synops, HardwareProfile::NeuromorphicAsic40nm)
     }
 
     /// Estimates total energy consumed by SynOps in picojoules (pJ) using specified hardware profile.
+    #[deprecated(
+        since = "0.5.0",
+        note = "per-operation constants are not measurements; use `EnergyEstimator::cpu_active_nanojoules`"
+    )]
     pub fn estimate_picojoules_with_profile(
         synops: &SynOpsTracker,
         profile: HardwareProfile,
@@ -165,11 +217,19 @@ impl EnergyEstimator {
     }
 
     /// Estimates total energy in nanojoules (nJ) in `Fix32` format for 40nm ASIC.
+    #[deprecated(
+        since = "0.5.0",
+        note = "per-operation constants are not measurements; use `EnergyEstimator::cpu_active_nanojoules`"
+    )]
     pub fn estimate_nanojoules_fix32(synops: &SynOpsTracker) -> Fix32 {
         Self::estimate_nanojoules_fix32_with_profile(synops, HardwareProfile::NeuromorphicAsic40nm)
     }
 
     /// Estimates total energy in nanojoules (nJ) in `Fix32` format using specified hardware profile.
+    #[deprecated(
+        since = "0.5.0",
+        note = "per-operation constants are not measurements; use `EnergyEstimator::cpu_active_nanojoules`"
+    )]
     pub fn estimate_nanojoules_fix32_with_profile(
         synops: &SynOpsTracker,
         profile: HardwareProfile,
@@ -247,6 +307,20 @@ mod tests {
         );
         // 100 000 * 150 + 1 000 * 450 = 15 000 000 + 450 000 = 15 450 000 pJ = 15.45 µJ
         assert_eq!(mcu_pj, 15_450_000);
+    }
+
+    #[test]
+    fn test_cpu_active_energy() {
+        // 48,000 cycles at 48 MHz = 1 ms; at 10 mW = 10 µJ = 10,000 nJ.
+        assert_eq!(
+            EnergyEstimator::cpu_active_nanojoules(48_000, 10_000, 48_000_000),
+            10_000
+        );
+        assert_eq!(EnergyEstimator::cpu_active_nanojoules(48_000, 10_000, 0), 0);
+        assert_eq!(
+            EnergyEstimator::cpu_active_nanojoules(u64::MAX, u64::MAX, 1),
+            u64::MAX
+        );
     }
 
     #[test]
