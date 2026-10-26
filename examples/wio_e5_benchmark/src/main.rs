@@ -1,12 +1,15 @@
 #![no_std]
 #![no_main]
 
+mod board;
+
+use core::hint::black_box;
 use cortex_m_rt::entry;
 use panic_halt as _;
 use rtt_target::{rprintln, rtt_init_print};
 
 use snn_core::domain::arena::{ActivationArena, ArenaLifPopulation};
-use snn_core::domain::bptn::{BptnBistableCell, BptnLatchMode, CompactBptnNeuron};
+use snn_core_bptn::{BptnBistableCell, BptnLatchMode, CompactBptnNeuron};
 use snn_core::domain::compact_population::{CompactLif16Population, CompactLifPopulation};
 use snn_core::domain::lazy_population::LazyDecayLifPopulation;
 use snn_core::domain::models::alif::AlifDynamics;
@@ -31,9 +34,10 @@ fn main() -> ! {
     cp.DWT.enable_cycle_counter();
 
     rprintln!("\n================================================================================");
-    rprintln!("🔬 SILICON BENCHMARK: WIO-E5 (STM32WLE5JC @ 48 MHz)");
+    rprintln!("🔬 SILICON BENCHMARK: WIO-E5 (STM32WLE5JC)");
     rprintln!("🚀 snn_core v0.4.0 - ARM Cortex-M4 without FPU (thumbv7em-none-eabi)");
     rprintln!("================================================================================\n");
+    let clock_hz = board::init_and_report();
 
     // DWT read overhead calibration
     let t0 = get_cycles();
@@ -53,17 +57,17 @@ fn main() -> ! {
     let mut lif_state = Default::default();
     let start = get_cycles();
     for _ in 0..ITER {
-        core::hint::black_box(LifDynamics::step(
+        black_box(LifDynamics::step(
             &lif_cfg,
             &mut lif_state,
-            Fix32::from_num(0.5),
+            black_box(Fix32::from_num(0.5)),
         ));
     }
     let elapsed = get_cycles().wrapping_sub(start).saturating_sub(overhead);
     let cycles_lif = (elapsed as f32) / (ITER as f32);
-    let ns_lif = (cycles_lif / 48.0) * 1000.0;
+    let ns_lif = board::cycles_to_us(cycles_lif, clock_hz) * 1000.0;
     rprintln!(
-        "  • LIF (Hard Reset)       : {:.2} cycles ({:.1} ns @ 48MHz)",
+        "  • LIF (Hard Reset)       : {:.2} cycles ({:.1} ns)",
         cycles_lif,
         ns_lif
     );
@@ -74,15 +78,15 @@ fn main() -> ! {
     let mut lif_sub_state = Default::default();
     let start = get_cycles();
     for _ in 0..ITER {
-        core::hint::black_box(LifDynamics::step(
+        black_box(LifDynamics::step(
             &lif_sub_cfg,
             &mut lif_sub_state,
-            Fix32::from_num(1.2),
+            black_box(Fix32::from_num(1.2)),
         ));
     }
     let elapsed = get_cycles().wrapping_sub(start).saturating_sub(overhead);
     let cycles_lif_sub = (elapsed as f32) / (ITER as f32);
-    let ns_lif_sub = (cycles_lif_sub / 48.0) * 1000.0;
+    let ns_lif_sub = board::cycles_to_us(cycles_lif_sub, clock_hz) * 1000.0;
     rprintln!(
         "  • LIF (Subtract Reset)   : {:.2} cycles ({:.1} ns)",
         cycles_lif_sub,
@@ -101,17 +105,17 @@ fn main() -> ! {
     let mut alif_state = Default::default();
     let start = get_cycles();
     for _ in 0..ITER {
-        core::hint::black_box(AlifDynamics::step(
+        black_box(AlifDynamics::step(
             &alif_cfg,
             &mut alif_state,
-            Fix32::from_num(0.6),
+            black_box(Fix32::from_num(0.6)),
         ));
     }
     let elapsed = get_cycles().wrapping_sub(start).saturating_sub(overhead);
     let cycles_alif = (elapsed as f32) / (ITER as f32);
-    let ns_alif = (cycles_alif / 48.0) * 1000.0;
+    let ns_alif = board::cycles_to_us(cycles_alif, clock_hz) * 1000.0;
     rprintln!(
-        "  • ALIF (Seuil Adaptatif) : {:.2} cycles ({:.1} ns)",
+        "  • ALIF (adaptive thresh.): {:.2} cycles ({:.1} ns)",
         cycles_alif,
         ns_alif
     );
@@ -121,15 +125,15 @@ fn main() -> ! {
     let mut izh_state = Default::default();
     let start = get_cycles();
     for _ in 0..ITER {
-        core::hint::black_box(IzhikevichDynamics::step(
+        black_box(IzhikevichDynamics::step(
             &izh_cfg,
             &mut izh_state,
-            Fix32::from_num(5.0),
+            black_box(Fix32::from_num(5.0)),
         ));
     }
     let elapsed = get_cycles().wrapping_sub(start).saturating_sub(overhead);
     let cycles_izh = (elapsed as f32) / (ITER as f32);
-    let ns_izh = (cycles_izh / 48.0) * 1000.0;
+    let ns_izh = board::cycles_to_us(cycles_izh, clock_hz) * 1000.0;
     rprintln!(
         "  • Izhikevich (2 steps)   : {:.2} cycles ({:.1} ns)",
         cycles_izh,
@@ -163,8 +167,11 @@ fn main() -> ! {
 
     let start = get_cycles();
     for _ in 0..100 {
-        csr_fix32.propagate_active_spikes(&active_spikes, &mut accumulators_f32);
-        core::hint::black_box(&accumulators_f32);
+        black_box(&csr_fix32).propagate_active_spikes(
+            black_box(&active_spikes),
+            black_box(&mut accumulators_f32),
+        );
+        black_box(&accumulators_f32);
     }
     let elapsed = get_cycles().wrapping_sub(start).saturating_sub(overhead);
     let cycles_per_syn_f32 = (elapsed as f32) / (100.0 * 128.0);
@@ -181,16 +188,15 @@ fn main() -> ! {
 
     let start = get_cycles();
     for _ in 0..100 {
-        csr_quant.propagate_spikes_words_i32(&spike_words, &mut int_accumulators);
-        core::hint::black_box(&int_accumulators);
+        black_box(&csr_quant)
+            .propagate_spikes_words_i32(black_box(&spike_words), black_box(&mut int_accumulators));
+        black_box(&int_accumulators);
     }
     let elapsed = get_cycles().wrapping_sub(start).saturating_sub(overhead);
     let cycles_per_syn_i8 = (elapsed as f32) / (100.0 * 128.0);
-    let gain = cycles_per_syn_f32 / cycles_per_syn_i8.max(0.001);
     rprintln!(
-        "  • QuantizedRomCsr INT8   : {:.2} cycles / synapse (Gain : x{:.2})",
-        cycles_per_syn_i8,
-        gain
+        "  • QuantizedRomCsr INT8   : {:.2} cycles / synapse",
+        cycles_per_syn_i8
     );
 
     // ------------------------------------------------------------------------
@@ -206,12 +212,13 @@ fn main() -> ! {
 
     let start = get_cycles();
     for _ in 0..100 {
-        pop_f32.tick_active(&mut bools_f32, &mut active_buf, &mut active_count);
+        black_box(&mut pop_f32).tick_active(&mut bools_f32, &mut active_buf, &mut active_count);
+        black_box(&bools_f32);
     }
     let elapsed = get_cycles().wrapping_sub(start).saturating_sub(overhead);
     let cycles_pop_f32 = (elapsed as f32) / 100.0;
     rprintln!(
-        "  • CompactLifPopulation Fix32 : {:.1} cycles/tick (9B / neuron SRAM)",
+        "  • CompactLifPopulation Fix32 : {:.1} cycles/tick, no input (9 B / neuron SRAM)",
         cycles_pop_f32
     );
 
@@ -222,12 +229,13 @@ fn main() -> ! {
 
     let start = get_cycles();
     for _ in 0..100 {
-        pop_f16.tick_active(&mut bools_f16, &mut active_buf16, &mut active_count);
+        black_box(&mut pop_f16).tick_active(&mut bools_f16, &mut active_buf16, &mut active_count);
+        black_box(&bools_f16);
     }
     let elapsed = get_cycles().wrapping_sub(start).saturating_sub(overhead);
     let cycles_pop_f16 = (elapsed as f32) / 100.0;
     rprintln!(
-        "  • CompactLif16Population Fix16: {:.1} cycles/tick (5B / neuron SRAM -> -44% RAM)",
+        "  • CompactLif16Population Fix16: {:.1} cycles/tick, no input (5 B / neuron SRAM)",
         cycles_pop_f16
     );
 
@@ -242,12 +250,13 @@ fn main() -> ! {
 
     let start = get_cycles();
     for _ in 0..100 {
-        arena_pop.step_arena(&mut arena.accumulators, &mut out_words);
+        black_box(&mut arena_pop).step_arena(black_box(&mut arena.accumulators), &mut out_words);
+        black_box(&out_words);
     }
     let elapsed = get_cycles().wrapping_sub(start).saturating_sub(overhead);
     let cycles_arena = (elapsed as f32) / 100.0;
     rprintln!(
-        "  • ArenaLifPopulation Step    : {:.1} cycles (0 accumulators in persistent SRAM!)",
+        "  • ArenaLifPopulation Step    : {:.1} cycles (accumulators in the shared arena)",
         cycles_arena
     );
 
@@ -261,15 +270,15 @@ fn main() -> ! {
     // A. Sparsity 99% (Near-silent - IoT sentinel regime)
     let start = get_cycles();
     for tick in 0..100 {
-        lazy_pop.advance_tick();
+        black_box(&mut lazy_pop).advance_tick();
         if tick == 50 {
-            lazy_pop.receive_input(0, Fix32::from_num(1.5));
+            lazy_pop.receive_input(0, black_box(Fix32::from_num(1.5)));
         }
     }
     let elapsed_99 = get_cycles().wrapping_sub(start).saturating_sub(overhead);
     let cycles_99 = (elapsed_99 as f32) / 100.0;
     rprintln!(
-        "  • Sparsity 99% (Sentinel)    : {:.1} cycles/tick",
+        "  • 1 input in 100 ticks       : {:.1} cycles/tick",
         cycles_99
     );
 
@@ -277,15 +286,15 @@ fn main() -> ! {
     lazy_pop.reset();
     let start = get_cycles();
     for tick in 0..100 {
-        lazy_pop.advance_tick();
+        black_box(&mut lazy_pop).advance_tick();
         if tick % 10 == 0 {
-            lazy_pop.receive_input(0, Fix32::from_num(1.5));
+            lazy_pop.receive_input(0, black_box(Fix32::from_num(1.5)));
         }
     }
     let elapsed_90 = get_cycles().wrapping_sub(start).saturating_sub(overhead);
     let cycles_90 = (elapsed_90 as f32) / 100.0;
     rprintln!(
-        "  • Sparsity 90% (Activity)    : {:.1} cycles/tick",
+        "  • 1 input every 10 ticks     : {:.1} cycles/tick",
         cycles_90
     );
 
@@ -293,22 +302,22 @@ fn main() -> ! {
     lazy_pop.reset();
     let start = get_cycles();
     for _tick in 0..100 {
-        lazy_pop.advance_tick();
+        black_box(&mut lazy_pop).advance_tick();
         for i in 0..POP_N {
-            lazy_pop.receive_input(i, Fix32::from_num(0.2));
+            lazy_pop.receive_input(i, black_box(Fix32::from_num(0.2)));
         }
     }
     let elapsed_0 = get_cycles().wrapping_sub(start).saturating_sub(overhead);
     let cycles_0 = (elapsed_0 as f32) / 100.0;
     rprintln!(
-        "  • Sparsity 0%  (Full activity): {:.1} cycles/tick",
+        "  • 64 inputs every tick       : {:.1} cycles/tick",
         cycles_0
     );
 
     // ------------------------------------------------------------------------
     // SECTION 6: SILICO-NATIVE BPTN ENGINE (64-bit Word-RAM Evaluation)
     // ------------------------------------------------------------------------
-    rprintln!("\n[6/6] ⚡ SILICO-NATIVE BPTN (Word-RAM Hardware Instructions):");
+    rprintln!("\n[6/6] ⚡ BPTN (one neuron, 2 channels):");
 
     let bptn_neuron =
         CompactBptnNeuron::<2>::new([0xFFFF_0000_FFFF_0000, 0x0000_FFFF_0000_FFFF], [0, 0], 16);
@@ -316,25 +325,20 @@ fn main() -> ! {
 
     let start = get_cycles();
     for _ in 0..1000 {
-        core::hint::black_box(bptn_neuron.tick(&histories));
+        black_box(black_box(&bptn_neuron).tick(black_box(&histories)));
     }
     let elapsed = get_cycles().wrapping_sub(start).saturating_sub(overhead);
     let cycles_bptn_window = (elapsed as f32) / 1000.0;
-    let cycles_per_tick = cycles_bptn_window / 64.0;
     rprintln!(
-        "  • BPTN 64-tick window        : {:.2} cycles ({:.1} ns for 64 ticks)",
+        "  • 1 neuron x 2 channels, one 64-tick window: {:.2} cycles ({:.1} ns)",
         cycles_bptn_window,
-        (cycles_bptn_window / 48.0) * 1000.0
-    );
-    rprintln!(
-        "  • Amortized unit cost/tick   : {:.3} cycles / tick",
-        cycles_per_tick
+        board::cycles_to_us(cycles_bptn_window, clock_hz) * 1000.0
     );
 
     let mut latch = BptnBistableCell::new(BptnLatchMode::ResetDominant);
     let start = get_cycles();
     for _ in 0..1000 {
-        core::hint::black_box(latch.step(true, false));
+        black_box(latch.step(black_box(true), false));
     }
     let elapsed = get_cycles().wrapping_sub(start).saturating_sub(overhead);
     let cycles_latch = (elapsed as f32) / 1000.0;
@@ -343,14 +347,9 @@ fn main() -> ! {
         cycles_latch
     );
 
-    // ------------------------------------------------------------------------
-    // SYNTHESIS & HARDWARE RETURN ON INVESTMENT
-    // ------------------------------------------------------------------------
     rprintln!("\n================================================================================");
-    rprintln!("🎯 SILICON HARDWARE CONCLUSION (Cortex-M4 @ 48 MHz):");
-    rprintln!("  1. snn_core INT8 quantization delivers a real x{:.1} inference speedup over standard Fix32.", gain);
-    rprintln!("  2. Fix16 compaction cuts SRAM footprint by 44% at iso-cycle throughput.");
-    rprintln!("  3. The BPTN engine executes in {:.3} cycle/tick, outperforming all continuous analog models.", cycles_per_tick);
+    rprintln!("Cycle counts measured with DWT CYCCNT on this board (1 run). Synthetic inputs, no accuracy.");
+    rprintln!("Times use the clock read back above. No comparison with other models is made here.");
     rprintln!("================================================================================\n");
 
     loop {

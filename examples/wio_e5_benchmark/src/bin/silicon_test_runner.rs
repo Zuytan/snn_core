@@ -1,12 +1,16 @@
 #![no_std]
 #![no_main]
 
+#[path = "../board.rs"]
+mod board;
+
+use core::hint::black_box as bb;
 use cortex_m_rt::entry;
 use panic_halt as _;
 use rtt_target::{rprintln, rtt_init_print, ChannelMode::BlockIfFull};
 
 use snn_core::domain::bitset::SpikeBitset;
-use snn_core::domain::bptn::{
+use snn_core_bptn::{
     bptn_parallel_smith_step_u64, dilate_temporal_jitter, erode_temporal_noise,
     open_temporal_filter, swar_majority_pool_8x8, BptnFeedforwardLayer, BptnHysteresisLatch,
     BptnRobustToggleCell, CompactBptnNeuron,
@@ -53,12 +57,15 @@ impl TestRunner {
 }
 
 // ============================================================================
-// ACOUSTIC KWS DATA FLASHED IN FLASH ROM (.rodata)
-// (16 channels x 64 ticks of audio context per class)
+// HAND-WRITTEN TEST PATTERNS IN FLASH ROM (.rodata)
+// (16 channels x 64 ticks per pattern). These bit patterns were written by hand to
+// look like coarse spectro-temporal shapes of the words "yes", "no" and "stop". They are
+// not recorded audio and not a keyword-spotting dataset: suite 4 is a functional test of
+// the BPTN layer, not a measure of keyword-spotting accuracy.
 // ============================================================================
 const KWS_CHANNELS: usize = 16;
 
-// "YES" Sample: Low-mid frequency transition then high sibilant (Ch 12-15)
+// "YES" pattern: low-mid frequency transition then high sibilant (Ch 12-15)
 static SAMPLE_YES: [u64; KWS_CHANNELS] = [
     0x0000_0000_0000_0000,
     0x0000_0000_0000_0000,
@@ -78,7 +85,7 @@ static SAMPLE_YES: [u64; KWS_CHANNELS] = [
     0x001F_F800_0000_0000,
 ];
 
-// "NO" Sample: Nasal resonance and vowel 'o' (Ch 1-6) without high-frequency activity
+// "NO" pattern: nasal resonance and vowel 'o' (Ch 1-6) without high-frequency activity
 static SAMPLE_NO: [u64; KWS_CHANNELS] = [
     0x0000_0000_00FF_0000,
     0x0000_0000_0FFF_8000,
@@ -98,7 +105,7 @@ static SAMPLE_NO: [u64; KWS_CHANNELS] = [
     0x0000_0000_0000_0000,
 ];
 
-// "STOP" Sample: Sibilant attack 'S' (Ch 13-15), silence, explosion 'T', resonance 'O'
+// "STOP" pattern: sibilant attack 'S' (Ch 13-15), silence, explosion 'T', resonance 'O'
 static SAMPLE_STOP: [u64; KWS_CHANNELS] = [
     0x0000_0000_0000_0000,
     0x0000_0000_0000_0000,
@@ -118,7 +125,7 @@ static SAMPLE_STOP: [u64; KWS_CHANNELS] = [
     0x0000_0000_0000_01FF,
 ];
 
-// "NOISE" Sample: Sporadic uncorrelated thermal white noise
+// "NOISE" pattern: sporadic hand-written bits
 static SAMPLE_NOISE: [u64; KWS_CHANNELS] = [
     0x0100_0020_0004_0001,
     0x0008_0001_0040_0002,
@@ -147,9 +154,11 @@ fn main() -> ! {
     cp.DWT.enable_cycle_counter();
 
     rprintln!("\n================================================================================");
-    rprintln!("🧪 REAL SILICON TEST SUITE: WIO-E5 (STM32WLE5JC @ 48 MHz)");
+    rprintln!("🧪 REAL SILICON TEST SUITE: WIO-E5 (STM32WLE5JC)");
     rprintln!("⚡ ARM Cortex-M4 without FPU (thumbv7em-none-eabi) - Hardware Validation");
     rprintln!("================================================================================\n");
+    board::init_and_report();
+    rprintln!("Inputs and results go through black_box, so every check runs on the core.");
 
     let t0 = get_cycles();
     let t1 = get_cycles();
@@ -167,9 +176,9 @@ fn main() -> ! {
 
     // 1.1 Fix32 Positive and Negative Saturation
     let start = get_cycles();
-    let a = Fix32::from_bits(i32::MAX - 100);
-    let b = Fix32::from_bits(500);
-    let c = a.saturating_add(b);
+    let a = Fix32::from_bits(bb(i32::MAX - 100));
+    let b = Fix32::from_bits(bb(500));
+    let c = bb(a.saturating_add(b));
     let cycles = get_cycles().wrapping_sub(start);
     runner.check(
         "Fix32::saturating_add to i32::MAX",
@@ -179,9 +188,9 @@ fn main() -> ! {
 
     // 1.2 Fix16 Saturation Q8.8
     let start = get_cycles();
-    let fa = Fix16::from_bits(i16::MIN + 50);
-    let fb = Fix16::from_bits(100);
-    let fc = fa.saturating_sub(fb);
+    let fa = Fix16::from_bits(bb(i16::MIN + 50));
+    let fb = Fix16::from_bits(bb(100));
+    let fc = bb(fa.saturating_sub(fb));
     let cycles = get_cycles().wrapping_sub(start);
     runner.check(
         "Fix16::saturating_sub to i16::MIN",
@@ -191,8 +200,8 @@ fn main() -> ! {
 
     // 1.3 Intrinsic ssat_16 (Branchless 16-bit hardware saturation)
     let start = get_cycles();
-    let sat_val = ssat_16(70000);
-    let sat_neg = ssat_16(-70000);
+    let sat_val = bb(ssat_16(bb(70000)));
+    let sat_neg = bb(ssat_16(bb(-70000)));
     let cycles = get_cycles().wrapping_sub(start);
     runner.check(
         "ARM ssat_16 clamp [+32767, -32768]",
@@ -204,7 +213,7 @@ fn main() -> ! {
     let start = get_cycles();
     let p1 = (1000i16 as u16 as u32) | ((2000i16 as u16 as u32) << 16);
     let p2 = (3i16 as u16 as u32) | ((4i16 as u16 as u32) << 16);
-    let res_smlad = smlad(p1, p2, 10);
+    let res_smlad = bb(smlad(bb(p1), bb(p2), bb(10)));
     let cycles = get_cycles().wrapping_sub(start);
     // (1000 * 3) + (2000 * 4) + 10 = 3000 + 8000 + 10 = 11010
     runner.check(
@@ -217,7 +226,7 @@ fn main() -> ! {
     let start = get_cycles();
     let qa = (32000u16 as u32) | ((100u16 as u32) << 16);
     let qb = (2000u16 as u32) | ((200u16 as u32) << 16);
-    let res_qadd = qadd16(qa, qb);
+    let res_qadd = bb(qadd16(bb(qa), bb(qb)));
     let cycles = get_cycles().wrapping_sub(start);
     let low16 = (res_qadd & 0xFFFF) as i16;
     let high16 = ((res_qadd >> 16) & 0xFFFF) as i16;
@@ -237,10 +246,11 @@ fn main() -> ! {
     // 2.1 SpikeBitset Trailing Zeros Hardware (CTZ) via extract_active_indices
     let start = get_cycles();
     let mut bitset = SpikeBitset::<2>::new();
-    bitset.set(17);
-    bitset.set(42);
+    bitset.set(bb(17));
+    bitset.set(bb(42));
     let mut active = [0u32; 4];
-    let n_active = bitset.extract_active_indices(&mut active);
+    let n_active = bb(bb(&bitset).extract_active_indices(&mut active));
+    bb(&active);
     let cycles = get_cycles().wrapping_sub(start);
     runner.check(
         "SpikeBitset CTZ extraction ([17, 42])",
@@ -250,7 +260,7 @@ fn main() -> ! {
 
     // 2.2 Hardware population count (count_ones)
     let start = get_cycles();
-    let count = bitset.count_ones();
+    let count = bb(bb(&bitset).count_ones());
     let cycles = get_cycles().wrapping_sub(start);
     runner.check("SpikeBitset count_ones() == 2", count == 2, cycles);
 
@@ -263,7 +273,7 @@ fn main() -> ! {
 
     // 3.1 1D Morphological Dilation (Anti-Jitter)
     let start = get_cycles();
-    let d_res = dilate_temporal_jitter(0x0000_0000_0000_0002u64, 1);
+    let d_res = bb(dilate_temporal_jitter(bb(0x0000_0000_0000_0002u64), 1));
     let cycles = get_cycles().wrapping_sub(start);
     // Bit 1 dilated by 1 -> Bits 0, 1, 2 = 0b111 = 7
     runner.check(
@@ -274,7 +284,7 @@ fn main() -> ! {
 
     // 3.2 1D Morphological Erosion (Noise Filter)
     let start = get_cycles();
-    let e_res = erode_temporal_noise(0x0000_0000_0000_000Fu64, 1);
+    let e_res = bb(erode_temporal_noise(bb(0x0000_0000_0000_000Fu64), 1));
     let cycles = get_cycles().wrapping_sub(start);
     // 0x0F = bits 0,1,2,3. Only bits 1 and 2 have active left/right neighbors -> 0b0110 = 6
     runner.check(
@@ -286,7 +296,7 @@ fn main() -> ! {
     // 3.3 Full Opening on isolated impulse noise
     let start = get_cycles();
     let noisy_isolated_spike = 0x0000_0000_0000_0004u64; // isolated 1-tick impulse
-    let filtered = open_temporal_filter(noisy_isolated_spike, 1);
+    let filtered = bb(open_temporal_filter(bb(noisy_isolated_spike), 1));
     let cycles = get_cycles().wrapping_sub(start);
     runner.check(
         "open_temporal_filter suppresses isolated spike (0x04 -> 0x00)",
@@ -298,11 +308,11 @@ fn main() -> ! {
     let start = get_cycles();
     let mut latch = BptnHysteresisLatch::new();
     // 1 excitation rises to state 1 (output still false as threshold >= 2)
-    let s1 = latch.step(true, false);
+    let s1 = bb(latch.step(bb(true), false));
     // 2nd excitation rises to state 2 (output toggles to true)
-    let s2 = latch.step(true, false);
+    let s2 = bb(latch.step(bb(true), false));
     // 1 inhibition lowers to state 1 (output falls back to false)
-    let s3 = latch.step(false, true);
+    let s3 = bb(latch.step(bb(false), true));
     let cycles = get_cycles().wrapping_sub(start);
     runner.check(
         "BptnHysteresisLatch toggles at 2 ticks and falls back",
@@ -313,13 +323,13 @@ fn main() -> ! {
     // 3.5 Anti-Glitch Parity Latch (2-tick confirmation and full cycle)
     let start = get_cycles();
     let mut toggle = BptnRobustToggleCell::new();
-    let t1 = toggle.step(true); // 1st candidate tick -> no toggle (remains 0)
-    let t2 = toggle.step(true); // 2nd consecutive confirmed tick -> toggles to 1
-    let t3 = toggle.step(false); // hold state (remains 1)
-    let t4 = toggle.step(true); // isolated 1-tick glitch (hold 1)
-    let t5 = toggle.step(false); // glitch dropped without confirmation (hold 1)
-    let t6 = toggle.step(true); // 1st candidate inversion tick -> hold 1
-    let t7 = toggle.step(true); // 2nd consecutive confirmed tick -> toggles 1 -> 0!
+    let t1 = bb(toggle.step(bb(true))); // 1st candidate tick -> no toggle (remains 0)
+    let t2 = bb(toggle.step(bb(true))); // 2nd consecutive confirmed tick -> toggles to 1
+    let t3 = bb(toggle.step(bb(false))); // hold state (remains 1)
+    let t4 = bb(toggle.step(bb(true))); // isolated 1-tick glitch (hold 1)
+    let t5 = bb(toggle.step(bb(false))); // glitch dropped without confirmation (hold 1)
+    let t6 = bb(toggle.step(bb(true))); // 1st candidate inversion tick -> hold 1
+    let t7 = bb(toggle.step(bb(true))); // 2nd consecutive confirmed tick -> toggles 1 -> 0!
     let cycles = get_cycles().wrapping_sub(start);
     runner.check(
         "BptnRobustToggleCell full cycle (0 -> 1 -> hold -> 0)",
@@ -330,7 +340,7 @@ fn main() -> ! {
     // 3.6 SWAR Majority-Vote Pooling 8x8 Operator (Dense Noise Filter)
     let start = get_cycles();
     let swar_sample = 0x03u64 | (0x01u64 << 8) | (0x0Fu64 << 16);
-    let pooled = swar_majority_pool_8x8(swar_sample, 2);
+    let pooled = bb(swar_majority_pool_8x8(bb(swar_sample), 2));
     let cycles = get_cycles().wrapping_sub(start);
     runner.check(
         "swar_majority_pool_8x8 threshold 2 (0b0000_0101)",
@@ -340,8 +350,8 @@ fn main() -> ! {
 
     // 3.7 Saturating Smith Automaton 64 Channels in Parallel (bptn_parallel_smith_step_u64)
     let start = get_cycles();
-    let (c1_step1, c0_step1) = bptn_parallel_smith_step_u64(0, 0, 1, 0); // 0 -> 1
-    let (c1_step2, c0_step2) = bptn_parallel_smith_step_u64(c1_step1, c0_step1, 1, 0); // 1 -> 2 (active!)
+    let (c1_step1, c0_step1) = bb(bptn_parallel_smith_step_u64(bb(0), bb(0), bb(1), 0)); // 0 -> 1
+    let (c1_step2, c0_step2) = bb(bptn_parallel_smith_step_u64(c1_step1, c0_step1, bb(1), 0)); // 1 -> 2
     let cycles = get_cycles().wrapping_sub(start);
     let smith_ok =
         (c1_step1 & 1 == 0) && (c0_step1 & 1 == 1) && (c1_step2 & 1 == 1) && (c0_step2 & 1 == 0);
@@ -352,10 +362,10 @@ fn main() -> ! {
     );
 
     // ========================================================================
-    // SUITE 4: FULL KWS CLASSIFICATION ON REAL ACOUSTIC SAMPLES
+    // SUITE 4: BPTN LAYER ON HAND-WRITTEN PATTERNS (FUNCTIONAL TEST, NOT KWS ACCURACY)
     // ========================================================================
     rprintln!("\n┌──────────────────────────────────────────────────────────────────────────────┐");
-    rprintln!("│ SUITE 4: MULTI-CLASS KWS CLASSIFICATION ON REAL ACOUSTIC SIGNALS             │");
+    rprintln!("│ SUITE 4: BPTN LAYER ON 4 HAND-WRITTEN PATTERNS (not recorded audio)          │");
     rprintln!("└──────────────────────────────────────────────────────────────────────────────┘");
 
     // Definition of a 3-class BPTN classifier: 0: YES, 1: NO, 2: STOP
@@ -385,47 +395,47 @@ fn main() -> ! {
 
     // Test 4.1: Inference on "YES" sample
     let start = get_cycles();
-    let mask_yes = kws_layer.tick_mask(&SAMPLE_YES);
+    let mask_yes = bb(bb(&kws_layer).tick_mask(bb(&SAMPLE_YES)));
     let cycles = get_cycles().wrapping_sub(start);
     // Must activate neuron 0 (bit 0 = 1) and reject neurons 1 and 2
     let is_yes_correct = (mask_yes & 0b001) != 0 && (mask_yes & 0b110) == 0;
     runner.check(
-        "KWS Word recognition 'YES' (Mask: 0b001)",
+        "Pattern 'YES' -> mask 0b001",
         is_yes_correct,
         cycles,
     );
 
     // Test 4.2: Inference on "NO" sample
     let start = get_cycles();
-    let mask_no = kws_layer.tick_mask(&SAMPLE_NO);
+    let mask_no = bb(bb(&kws_layer).tick_mask(bb(&SAMPLE_NO)));
     let cycles = get_cycles().wrapping_sub(start);
     // Must activate neuron 1 (bit 1 = 1) and reject neurons 0 and 2
     let is_no_correct = (mask_no & 0b010) != 0 && (mask_no & 0b101) == 0;
     runner.check(
-        "KWS Word recognition 'NO' (Mask: 0b010)",
+        "Pattern 'NO' -> mask 0b010",
         is_no_correct,
         cycles,
     );
 
     // Test 4.3: Inference on "STOP" sample
     let start = get_cycles();
-    let mask_stop = kws_layer.tick_mask(&SAMPLE_STOP);
+    let mask_stop = bb(bb(&kws_layer).tick_mask(bb(&SAMPLE_STOP)));
     let cycles = get_cycles().wrapping_sub(start);
     // Must activate neuron 2 (bit 2 = 1) and reject neurons 0 and 1
     let is_stop_correct = (mask_stop & 0b100) != 0 && (mask_stop & 0b011) == 0;
     runner.check(
-        "KWS Word recognition 'STOP' (Mask: 0b100)",
+        "Pattern 'STOP' -> mask 0b100",
         is_stop_correct,
         cycles,
     );
 
     // Test 4.4: Thermal Noise Immunity / False Positives
     let start = get_cycles();
-    let mask_noise = kws_layer.tick_mask(&SAMPLE_NOISE);
+    let mask_noise = bb(bb(&kws_layer).tick_mask(bb(&SAMPLE_NOISE)));
     let cycles = get_cycles().wrapping_sub(start);
     // Total rejection: no neuron should fire (mask = 0)
     runner.check(
-        "KWS Total immunity on random noise (Mask: 0x00)",
+        "Pattern 'NOISE' -> mask 0x00",
         mask_noise == 0,
         cycles,
     );
@@ -442,9 +452,9 @@ fn main() -> ! {
     let config = LifConfig::new(Fix32::from_num(1.0), Fix32::from_num(0.95), Fix32::ZERO, 2);
     let mut pop: CompactLifPopulation<4> = CompactLifPopulation::new(config);
     // Injection of suprathreshold current into neuron 0
-    pop.receive_input(0, Fix32::from_num(1.5));
-    let fired_0 = pop.step_neuron(0);
-    let fired_1 = pop.step_neuron(1);
+    pop.receive_input(0, bb(Fix32::from_num(1.5)));
+    let fired_0 = bb(pop.step_neuron(0));
+    let fired_1 = bb(pop.step_neuron(1));
     let cycles = get_cycles().wrapping_sub(start);
     runner.check(
         "CompactLifPopulation spike emission neuron 0",
@@ -460,7 +470,8 @@ fn main() -> ! {
     let csr = QuantizedRomCsrSynapses::new(&CSR_ROW_PTRS, &CSR_TARGETS, &CSR_WEIGHTS, Fix32::ONE);
     let mut acc_buf = [0i32; 3];
     // Active spikes on sources 0 and 1 (mask 0b0011 = 0x03)
-    csr.propagate_spikes_words_i32(&[0x03], &mut acc_buf);
+    bb(&csr).propagate_spikes_words_i32(bb(&[0x03]), &mut acc_buf);
+    bb(&acc_buf);
     let cycles = get_cycles().wrapping_sub(start);
     // Source 0 propagates +120 on target 0, -50 on target 1
     // Source 1 propagates +80 on target 1, +100 on target 2

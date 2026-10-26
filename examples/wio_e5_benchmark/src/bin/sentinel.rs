@@ -1,6 +1,10 @@
 #![no_std]
 #![no_main]
 
+#[path = "../board.rs"]
+mod board;
+
+use core::hint::black_box;
 use cortex_m_rt::entry;
 use panic_halt as _;
 use rtt_target::{rprintln, rtt_init_print};
@@ -115,9 +119,10 @@ fn main() -> ! {
     cp.DWT.enable_cycle_counter();
 
     rprintln!("\n================================================================================");
-    rprintln!("📡 INDUSTRIAL DEMO: LoRaWAN SENTINEL ON WIO-E5");
-    rprintln!("⚡ STM32WLE5JC Silicon (ARM Cortex-M4 @ 48 MHz) - #![no_std] Zero Allocation");
+    rprintln!("📡 DEMO: EVENT-DRIVEN SENTINEL ON WIO-E5 (synthetic sensor signals)");
+    rprintln!("⚡ STM32WLE5JC (ARM Cortex-M4) - #![no_std], no heap allocation");
     rprintln!("================================================================================\n");
+    let clock_hz = board::init_and_report();
 
     let t0 = get_cycles();
     let t1 = get_cycles();
@@ -167,12 +172,12 @@ fn main() -> ! {
     let mut enc_mic = DeltaModulationEncoder::new(delta_thresh, Fix32::ZERO);
 
     rprintln!("⚙️  Sentinel Pipeline Initialization:");
-    rprintln!("   • Sensor Inputs     : 3D Accelerometer (X, Y, Z) + High Frequency Microphone");
+    rprintln!("   • Sensor Inputs     : synthetic X, Y, Z and microphone samples (no sensor connected)");
     rprintln!("   • Event Front-end   : 4x Asynchronous Delta Modulators (8 spike channels)");
     rprintln!(
         "   • Deep SNN          : 8 inputs -> 12 hidden neurons -> 2 decision neurons"
     );
-    rprintln!("   • SRAM Footprint    : 14 neurons x 9B = 126 bytes (Zero heap allocation!)");
+    rprintln!("   • Neuron state      : 14 neurons x 9 B = 126 bytes (excludes layers and buffers)");
     rprintln!("   • ROM Footprint     : Precompiled CSR tables in Flash (.rodata)\n");
 
     // ------------------------------------------------------------------------
@@ -193,6 +198,7 @@ fn main() -> ! {
         lcg_state = lcg_state.wrapping_mul(1664525).wrapping_add(1013904223);
         let noise_sample = Fix32::from_bits(((lcg_state >> 16) & 0x0FFF) as i32 - 2048); // Noise [-0.03, +0.03]
 
+        let noise_sample = black_box(noise_sample);
         let t_start = get_cycles();
 
         // 1. Differential encoding
@@ -233,7 +239,7 @@ fn main() -> ! {
         // 2. Event-driven processing
         let input_words = [input_word];
         let l1_out = layer1.tick_spikes_words(&input_words);
-        let l2_out = layer2.tick_spikes_words(l1_out);
+        let l2_out = black_box(layer2.tick_spikes_words(l1_out));
 
         let t_end = get_cycles();
         total_cycles_nominal += t_end.wrapping_sub(t_start).saturating_sub(overhead) as u64;
@@ -245,7 +251,9 @@ fn main() -> ! {
     }
 
     let avg_cycles_nominal = (total_cycles_nominal as f32) / 1000.0;
-    let avg_time_us = avg_cycles_nominal / 48.0;
+    let avg_time_us = board::cycles_to_us(avg_cycles_nominal, clock_hz);
+    // CPU busy fraction at 100 Hz sampling: one tick of processing every 10 ms.
+    let busy_percent_100hz = avg_time_us / 10_000.0 * 100.0;
     let nominal_sparsity = 100.0 - (total_input_spikes_nominal as f32 / (1000.0 * 8.0)) * 100.0;
 
     rprintln!("  • Processed samples       : 1,000");
@@ -254,17 +262,15 @@ fn main() -> ! {
         total_input_spikes_nominal,
         nominal_sparsity
     );
+    rprintln!("  • False alert(s)          : {} / 1,000 ticks", false_alarms);
     rprintln!(
-        "  • False alert(s)          : {} (Precision: 100.00%)",
-        false_alarms
-    );
-    rprintln!(
-        "  • Average cost per tick   : {:.2} cycles ({:.2} µs @ 48 MHz)",
+        "  • Average cost per tick   : {:.2} cycles ({:.2} µs)",
         avg_cycles_nominal,
         avg_time_us
     );
     rprintln!(
-        "  • Standby energy balance  : CPU WFI sleep 99.8% of the time at 100 Hz sampling"
+        "  • CPU busy at 100 Hz      : {:.3}% of the time (sensor reading and radio not included)",
+        busy_percent_100hz
     );
 
     // ------------------------------------------------------------------------
@@ -317,8 +323,8 @@ fn main() -> ! {
     let start_anomaly = get_cycles();
 
     for (tick, (&val_x, &val_mic)) in shock_wave_x.iter().zip(shock_wave_mic.iter()).enumerate() {
-        let (x_up, x_dn) = enc_x.step(val_x);
-        let (m_up, m_dn) = enc_mic.step(val_mic);
+        let (x_up, x_dn) = enc_x.step(black_box(val_x));
+        let (m_up, m_dn) = enc_mic.step(black_box(val_mic));
 
         let mut input_word: u32 = 0;
         if x_up {
@@ -363,49 +369,30 @@ fn main() -> ! {
     if alert_fired {
         rprintln!("🚨 CRITICAL ALERT DETECTED BY SNN NETWORK!");
         rprintln!(
-            "   • Time-to-Decision (TTD)  : {} ticks ({:.2} µs after shock inception)",
+            "   • Time-to-Decision (TTD)  : {} ticks; CPU time for those ticks {:.2} µs",
             time_to_decision,
-            (decision_cycles as f32) / 48.0
+            board::cycles_to_us(decision_cycles as f32, clock_hz)
         );
         rprintln!(
-            "   • Cumulative CPU Cost     : {} Cortex-M4 clock cycles",
+            "   • Cumulative CPU Cost     : {} cycles",
             decision_cycles
         );
         let peak_delta = alert_payload.peak_delta;
-        rprintln!("   • Generated LoRaWAN Frame : [0x{:02X}, 0x{:02X}, {}%, {} ticks, 0x{:04X}, CRC:0x{:02X}]",
+        rprintln!("   • Alert frame (fixed confidence and peak fields): [0x{:02X}, 0x{:02X}, {}%, {} ticks, 0x{:04X}, CRC:0x{:02X}]",
                   alert_payload.preamble,
                   alert_payload.event_type,
                   alert_payload.confidence,
                   alert_payload.latency_ticks,
                   peak_delta,
                   alert_payload.checksum);
-        rprintln!(
-            "   • Radio Payload FPort 10 : Ready for transmission via SX1262 LoRa SPI"
-        );
+        rprintln!("   • Frame built only; the radio is not used by this demo.");
     } else {
         rprintln!("❌ Error: Anomaly was not detected.");
     }
 
-    // ------------------------------------------------------------------------
-    // ENERGY SYNTHESIS & INDUSTRIAL QUALIFICATION
-    // ------------------------------------------------------------------------
     rprintln!("\n================================================================================");
-    rprintln!("📊 STANDARD TINYML VS SNN COMPARATIVE SUMMARY ON STM32WLE5JC:");
-    rprintln!("================================================================================");
-    rprintln!("  • Conventional TinyML Model (64-pt FFT + 3-layer TinyMLP):");
-    rprintln!("      - Cycles per step : ~45,000 cycles (Continuous FFT calculations even in silence)");
-    rprintln!("      - Average current : ~4.2 mA @ 48 MHz");
-    rprintln!("  • snn_core Event-Driven Sentinel:");
-    rprintln!(
-        "      - Standby cycles  : {:.2} cycles ({:.1}x faster / sparsity {:.1}%)",
-        avg_cycles_nominal,
-        45000.0 / avg_cycles_nominal,
-        nominal_sparsity
-    );
-    rprintln!("      - Average current : ~18 µA (99.6% energy reduction on LiSOCl2 battery)");
-    rprintln!("      - Estimated life  : > 8 years on 1200 mAh coin cell");
-    rprintln!("================================================================================");
-    rprintln!("✅ HARDWARE QUALIFICATION OF SENTINEL DEMONSTRATOR SUCCESSFUL ON WIO-E5");
+    rprintln!("Measured here: cycles per tick with DWT CYCCNT (1 run, synthetic signals).");
+    rprintln!("Not measured: current, battery life, a TinyML or FFT baseline on this board.");
     rprintln!("================================================================================\n");
 
     // Allow ST-Link probe time to flush all RTT buffers
