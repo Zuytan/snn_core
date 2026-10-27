@@ -1,0 +1,20 @@
+{
+  "seed": 0,
+  "results": [
+    {
+      "kind": "hgb",
+      "config": [
+        50,
+        4
+      ],
+      "trees": 1750,
+      "hgb_lr": 0.1,
+      "val_acc": 0.534908247205231,
+      "test_acc": 0.5233075874602453,
+      "nodes_visited_mean": 6999.982644252613,
+      "nodes_visited_max": 7000,
+      "flash_bytes": 218418,
+      "train_s": 7022.211704730988
+    }
+  ]
+}

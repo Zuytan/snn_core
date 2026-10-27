@@ -91,3 +91,10 @@ HistGradientBoosting) on the same input and split, reports accuracy of the integ
 and Flash, and exports one model (`--export DIR --export-config hgb:50x4`) for the firmware
 `tree_shd_eval` (`tools/run_lut_shd_on_board.py --kind tree --chunk 200`). Requires scikit-learn.
 
+Other tasks and inputs, all written as `.npz` files readable with `--data-npz` (and by
+`tree_baselines.py` and `cnn_int8_baseline.py`): `encode_speech_commands.py` (Google Speech
+Commands v2) and `encode_autohack.py` (AutoHack CAN) encode a task as 64 x 64 bits;
+`make_hybrid_features.py` adds per-channel counts over fixed windows; `make_multiscale_features.py`
+adds a bank of 4,788 counts over channel groups and time windows (18,460 input bits; the
+uncompressed output is about 2 GB on AutoHack).
+

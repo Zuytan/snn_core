@@ -42,6 +42,7 @@ sur 3**.
 | 5 | **Références classiques** | random forest, gradient boosting, CNN int8 (CMSIS-NN) | La forêt LUT reste en tête sur SHD. |
 | 6 | **Autres tâches** | Speech Commands et AutoHack | La forêt LUT perd, ou fait jeu égal sans avantage de coût. |
 | 7 | **Forêt hybride** | comptages par canal avant la forêt | Rattrape le CNN sur le CAN, mais le gradient boosting fait autant avec 2× moins de cycles ; n'aide pas sur Speech Commands. |
+| 8 | **Entrées multi-échelles** | banque de comptages sur plusieurs groupes de canaux et fenêtres ; les connexions apprises choisissent | +1,8 point pour la forêt sur Speech Commands, rien sur AutoHack ; le gradient boosting y gagne davantage (80,0 % sur AutoHack). |
 
 ## 4. Résultats
 
@@ -70,13 +71,18 @@ cycle. À environ 74 %, le CNN demande donc au moins 18× les cycles de la forê
 | Forêt LUT 64 × 4 | 52,35 % | 70,09 % | ~30 k cycles (mesuré sur SHD) |
 | Forêt LUT 256 × 2 | 56,13 % | 74,41 % | ~79 k cycles (mesuré sur SHD) |
 | Forêt LUT 256 × 2, entrée hybride | 56,07 % | 78,12 % | idem, plus l'agrégation (non mesurée) |
-| **CNN int8 tiny** | **61,32 %** | **77,75 %** | ≥ 17,8 k cycles, ~5 Ko |
+| Forêt LUT 64 × 4, banque multi-échelles | non lancé | 76,85 % | plus l'image intégrale (non mesurée) |
+| Forêt LUT 256 × 2, banque multi-échelles | 57,95 % | 76,48 % | idem |
+| **CNN int8 tiny** | **61,32 %** | 77,75 % | ≥ 17,8 k cycles, ~5 Ko |
 | CNN int8 small | 71,80 % | 77,47 % | ≥ 67 k cycles |
 | CNN int8 large | 79,56 % | 77,30 % | ≥ 562 k cycles |
 | Gradient boosting 50 × 4 | 54,18 % | 76,41 % | 7 000 / 1 000 nœuds lus |
 | Gradient boosting 50 × 4, entrée hybride | 47,93 % | 78,13 % | 1 000 nœuds sur AutoHack (~37 k cycles) |
+| **Gradient boosting 50 × 4, banque multi-échelles** | 52,33 % | **80,03 %** | 7 000 / 1 000 nœuds, plus l'image intégrale |
 
-**Critère de l'étape 2 non atteint** : la forêt LUT ne gagne que sur SHD.
+**Critère de l'étape 2 non atteint** : la forêt LUT ne gagne que sur SHD. Même en lui laissant choisir
+ses comptages dans une banque multi-échelles, elle reste sous le petit CNN sur Speech Commands et
+sous le gradient boosting sur AutoHack.
 
 ## 5. Ce que l'on a appris
 
@@ -89,7 +95,11 @@ cycle. À environ 74 %, le CNN demande donc au moins 18× les cycles de la forê
    carte.
 3. **Mais elle ne sait pas compter.** Quand l'information est agrégée sur toute la fenêtre (CAN :
    comptages de trames ; parole : formes spectrales), les nœuds de 6 bits sous-apprennent. Ajouter
-   des comptages en entrée corrige le CAN, mais profite autant au gradient boosting.
+   des comptages en entrée corrige le CAN, mais profite autant au gradient boosting. Laisser
+   l'apprentissage choisir les comptages dans une banque multi-échelles ne change pas ce constat :
+   +1,8 point au mieux pour la forêt, et le gradient boosting en tire davantage (80,0 % sur AutoHack).
+   La limite vient de l'apprentissage de la forêt (descente de gradient sur des choix discrets), pas
+   de ses entrées.
 4. **Le CNN int8 reste une référence très forte** : très compact en Flash (5 Ko pour le plus petit),
    et c'est lui qui gagne sur Speech Commands.
 5. **Mesurer sur silicium change les conclusions.** Plusieurs avantages annoncés en route ont été
@@ -208,7 +218,9 @@ pas seulement un gain de vitesse.
 - Consommation mesurée au PPK2 ou au Joulescope : toutes les énergies sont estimées.
 - Tâches à événements natifs (caméra DVS, cochlée silicium), où la forêt LUT a le plus de chances de
   garder son avantage.
-- Forêt dont les nœuds lisent aussi des comptages, ou mélange forêt et petite convolution.
+- Forêt entraînée par boosting (arbres ajoutés un à un sur les résidus) avec des nœuds LUT, ou nœuds
+  partagés dans le temps comme une convolution ; les comptages en entrée seuls ne suffisent pas.
+- Coût mesuré de l'image intégrale et des comptages sur la carte.
 - Une instruction de rassemblement de bits (de type `PEXT`) réduirait le coût d'un nœud LUT d'environ
   100 cycles à quelques cycles ; à évaluer sur RISC-V ou FPGA.
 - Revue de littérature (WiSARD, DWN, LogicNets, machines de Tsetlin, arbres multivariés) avant toute
@@ -229,4 +241,4 @@ python3 tools/run_lut_shd_on_board.py --kind bp --chunk 256 \
 
 Les autres modèles et tâches utilisent les mêmes scripts : `--models bnn|lut|lif|rlif`,
 `tree_baselines.py`, `cnn_int8_baseline.py`, `encode_speech_commands.py`, `encode_autohack.py`,
-`make_hybrid_features.py` (voir [`tools/bptn_torch/README.md`](../tools/bptn_torch/README.md)).
+`make_hybrid_features.py`, `make_multiscale_features.py` (voir [`tools/bptn_torch/README.md`](../tools/bptn_torch/README.md)).

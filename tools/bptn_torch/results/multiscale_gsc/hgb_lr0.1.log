@@ -1,0 +1,2 @@
+hgb (50, 4)      trees  1750  val  53.5  test 52.33  nodes read  7000.0 (max  7000)  Flash   213.3 KB  (7022s)
+Written to tools/bptn_torch/results/multiscale_gsc/hgb_lr0.1.json
