@@ -43,6 +43,7 @@ sur 3**.
 | 6 | **Autres tâches** | Speech Commands et AutoHack | La forêt LUT perd, ou fait jeu égal sans avantage de coût. |
 | 7 | **Forêt hybride** | comptages par canal avant la forêt | Rattrape le CNN sur le CAN, mais le gradient boosting fait autant avec 2× moins de cycles ; n'aide pas sur Speech Commands. |
 | 8 | **Entrées multi-échelles** | banque de comptages sur plusieurs groupes de canaux et fenêtres ; les connexions apprises choisissent | +1,8 point pour la forêt sur Speech Commands, rien sur AutoHack ; le gradient boosting y gagne davantage (80,0 % sur AutoHack). |
+| 9 | **Automate LUT** | l'état est un numéro de nœud ; à chaque trame, une LUT de 6 bits appris choisit l'état suivant, les scores des états visités s'additionnent | AutoHack : 79,3 % ± 2,9 (3 graines) depuis l'entrée brute, au niveau du gradient boosting et du CNN, ~2,2 k cycles par trame (estimés) ; échec sur Speech Commands (45,7 %). |
 
 ## 4. Résultats
 
@@ -73,6 +74,7 @@ cycle. À environ 74 %, le CNN demande donc au moins 18× les cycles de la forê
 | Forêt LUT 256 × 2, entrée hybride | 56,07 % | 78,12 % | idem, plus l'agrégation (non mesurée) |
 | Forêt LUT 64 × 4, banque multi-échelles | non lancé | 76,85 % | plus l'image intégrale (non mesurée) |
 | Forêt LUT 256 × 2, banque multi-échelles | 57,95 % | 76,48 % | idem |
+| Automate LUT 16 × 16, entrée brute | 45,74 % | 79,31 % ± 2,87 (3 graines) | ~2,2 k cycles par trame (4,6 k avec 35 classes), estimés |
 | **CNN int8 tiny** | **61,32 %** | 77,75 % | ≥ 17,8 k cycles, ~5 Ko |
 | CNN int8 small | 71,80 % | 77,47 % | ≥ 67 k cycles |
 | CNN int8 large | 79,56 % | 77,30 % | ≥ 562 k cycles |
@@ -100,6 +102,9 @@ sous le gradient boosting sur AutoHack.
    +1,8 point au mieux pour la forêt, et le gradient boosting en tire davantage (80,0 % sur AutoHack).
    La limite vient de l'apprentissage de la forêt (descente de gradient sur des choix discrets), pas
    de ses entrées.
+   L'automate LUT, qui compte et suit l'ordre des trames par son état, égale ces méthodes sur le CAN
+   depuis l'entrée brute (79,3 % ± 2,9 sur 3 graines) sans les dépasser, et échoue sur la parole.
+   Une seule graine peut tromper : la première donnait 82,6 %.
 4. **Le CNN int8 reste une référence très forte** : très compact en Flash (5 Ko pour le plus petit),
    et c'est lui qui gagne sur Speech Commands.
 5. **Mesurer sur silicium change les conclusions.** Plusieurs avantages annoncés en route ont été
@@ -221,6 +226,8 @@ pas seulement un gain de vitesse.
 - Forêt entraînée par boosting (arbres ajoutés un à un sur les résidus) avec des nœuds LUT, ou nœuds
   partagés dans le temps comme une convolution ; les comptages en entrée seuls ne suffisent pas.
 - Coût mesuré de l'image intégrale et des comptages sur la carte.
+- Automate LUT : perte à chaque trame pour une décision précoce fiable, mesure des cycles sur la
+  carte, second jeu de données CAN, bornes de score calculées par programmation dynamique.
 - Une instruction de rassemblement de bits (de type `PEXT`) réduirait le coût d'un nœud LUT d'environ
   100 cycles à quelques cycles ; à évaluer sur RISC-V ou FPGA.
 - Revue de littérature (WiSARD, DWN, LogicNets, machines de Tsetlin, arbres multivariés) avant toute
@@ -241,4 +248,4 @@ python3 tools/run_lut_shd_on_board.py --kind bp --chunk 256 \
 
 Les autres modèles et tâches utilisent les mêmes scripts : `--models bnn|lut|lif|rlif`,
 `tree_baselines.py`, `cnn_int8_baseline.py`, `encode_speech_commands.py`, `encode_autohack.py`,
-`make_hybrid_features.py`, `make_multiscale_features.py` (voir [`tools/bptn_torch/README.md`](../tools/bptn_torch/README.md)).
+`make_hybrid_features.py`, `make_multiscale_features.py`, `train_lut_automaton.py` (voir [`tools/bptn_torch/README.md`](../tools/bptn_torch/README.md)).

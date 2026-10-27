@@ -98,3 +98,8 @@ Commands v2) and `encode_autohack.py` (AutoHack CAN) encode a task as 64 x 64 bi
 adds a bank of 4,788 counts over channel groups and time windows (18,460 input bits; the
 uncompressed output is about 2 GB on AutoHack).
 
+`train_lut_automaton.py` trains LUT automata on the same `.npz` inputs: M automata of S states read
+one frame per tick, a k-bit LUT of the frame chooses the next state, and the int8 scores of the
+visited states are summed. It checks an integer reference against PyTorch, reports the accuracy
+after each number of frames read and estimates the cycles per frame (not measured).
+
