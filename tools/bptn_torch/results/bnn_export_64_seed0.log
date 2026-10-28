@@ -41,7 +41,7 @@ SHD: 7341 train / 815 val / 2264 test, input 64 ch x 64 ticks, density 26.5%, 10
   epoch  38/40  loss 0.158  val  74.5%  (0.2s)
   epoch  39/40  loss 0.225  val  73.9%  (0.2s)
   epoch  40/40  loss 0.133  val  73.9%  (0.2s)
-  exported to /Users/zuytan/.cache/snn_core/bnn_export_64: integer reference accuracy 69.26% on 2264 test samples, agreement with PyTorch 99.82%
+  exported to ~/.cache/snn_core/bnn_export_64: integer reference accuracy 69.26% on 2264 test samples, agreement with PyTorch 99.82%
   test 69.26% (training format), 69.26% (deployed)
 
 Results on SHD (seed 0, 40 epochs, hidden 64)

@@ -7,4 +7,4 @@ rf  (256, 12)    trees   256  val  96.6  test 78.35  nodes read  2505.4 (max  30
 rf  (128, 16)    trees   128  val  96.9  test 80.78  nodes read  1320.7 (max  1766)  Flash   437.8 KB  (2s)
 rf  (256, 16)    trees   256  val  96.6  test 78.45  nodes read  2642.1 (max  3513)  Flash   875.4 KB  (4s)
 hgb (50, 4)      trees   200  val  97.8  test 75.38  nodes read   798.2 (max   800)  Flash    22.3 KB  (23s)
-Written to /Users/zuytan/Documents/Developpement/Projets Perso/snn_core/tools/bptn_torch/results/step2_mitbih_rr_causal/hgb_lr0.1.json
+Written to ~/Documents/Developpement/Projets Perso/snn_core/tools/bptn_torch/results/step2_mitbih_rr_causal/hgb_lr0.1.json

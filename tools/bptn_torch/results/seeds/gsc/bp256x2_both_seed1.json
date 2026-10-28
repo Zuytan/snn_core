@@ -1,10 +1,10 @@
 {
   "dataset": "gsc_encoded_b64_f64",
   "args": {
-    "data_dir": "/Users/zuytan/.cache/snn_core/shd",
+    "data_dir": "~/.cache/snn_core/shd",
     "download": "False",
     "synthetic": "False",
-    "data_npz": "/Users/zuytan/.cache/snn_core/gsc/gsc_encoded_b64_f64.npz",
+    "data_npz": "~/.cache/snn_core/gsc/gsc_encoded_b64_f64.npz",
     "channels": "64",
     "ticks": "64",
     "t_max": "1.0",
@@ -31,7 +31,7 @@
     "bp_trees": "256",
     "bp_depth": "2",
     "export_bp": "None",
-    "teacher": "/Users/zuytan/.cache/snn_core/gsc/teacher_cnn_large_seed1.npy",
+    "teacher": "~/.cache/snn_core/gsc/teacher_cnn_large_seed1.npy",
     "distill_alpha": "0.7",
     "distill_temp": "4.0",
     "time_shift": "8"

@@ -42,7 +42,7 @@ SHD: 7341 train / 815 val / 2264 test, input 64 ch x 64 ticks, density 26.5%, 10
   epoch  39/40  loss 0.400  val  77.8%  (4.7s)
   epoch  40/40  loss 0.407  val  77.8%  (4.7s)
   LUT bit-level check: integer lookups == PyTorch model on 200 samples
-  exported to /Users/zuytan/.cache/snn_core/lut_export_2000: integer reference accuracy 71.95% on 2264 test samples
+  exported to ~/.cache/snn_core/lut_export_2000: integer reference accuracy 71.95% on 2264 test samples
   layer 0: 100.0% of LUT inputs moved from their initial position
   test 71.95% (training format), 71.95% (deployed)
 

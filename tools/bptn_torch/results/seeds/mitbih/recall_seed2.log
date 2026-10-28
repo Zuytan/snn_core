@@ -1,5 +1,5 @@
 {
-  "data": "/Users/zuytan/.cache/snn_core/mitdb/mitbih_w64_rrc.npz",
+  "data": "~/.cache/snn_core/mitdb/mitbih_w64_rrc.npz",
   "accuracy": 0.751529140219273,
   "recall": {
     "N": 0.8928571428571429,

@@ -1,7 +1,7 @@
 {
   "dataset": "SHD",
   "args": {
-    "data_dir": "/Users/zuytan/.cache/snn_core/shd",
+    "data_dir": "~/.cache/snn_core/shd",
     "download": "False",
     "synthetic": "False",
     "channels": "64",
@@ -26,7 +26,7 @@
     "lut_map_tau": "1.0",
     "out": "tools/bptn_torch/results/bnn_export_64_seed0.json",
     "export_lut": "None",
-    "export_bnn": "/Users/zuytan/.cache/snn_core/bnn_export_64"
+    "export_bnn": "~/.cache/snn_core/bnn_export_64"
   },
   "torch": "2.14.1",
   "cost_constants": {

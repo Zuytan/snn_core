@@ -1,10 +1,10 @@
 {
   "dataset": "mitbih_w64_rr",
   "args": {
-    "data_dir": "/Users/zuytan/.cache/snn_core/shd",
+    "data_dir": "~/.cache/snn_core/shd",
     "download": "False",
     "synthetic": "False",
-    "data_npz": "/Users/zuytan/.cache/snn_core/mitdb/mitbih_w64_rr.npz",
+    "data_npz": "~/.cache/snn_core/mitdb/mitbih_w64_rr.npz",
     "channels": "128",
     "ticks": "64",
     "t_max": "1.0",
@@ -25,7 +25,7 @@
     "lut_learn_mapping": "False",
     "lut_map_init": "0.0",
     "lut_map_tau": "1.0",
-    "out": "/Users/zuytan/Documents/Developpement/Projets Perso/snn_core/tools/bptn_torch/results/step2_mitbih_rr/bp256x2_lr5e-3_seed0.json",
+    "out": "~/Documents/Developpement/Projets Perso/snn_core/tools/bptn_torch/results/step2_mitbih_rr/bp256x2_lr5e-3_seed0.json",
     "export_lut": "None",
     "export_bnn": "None",
     "bp_trees": "256",

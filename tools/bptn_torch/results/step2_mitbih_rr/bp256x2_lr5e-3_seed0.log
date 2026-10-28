@@ -51,4 +51,4 @@ bp     |    74.15% |    74.14% |   19456 B |  1040 B |       82,893 |     1.73 |
 
 Cycles, ms and uJ are estimates from per-operation costs measured on the Wio-E5 (48 MHz) and an
 assumed 13.86 mW; framing-buffer cost is assumed. Flash and SRAM come from the data layout.
-Results written to /Users/zuytan/Documents/Developpement/Projets Perso/snn_core/tools/bptn_torch/results/step2_mitbih_rr/bp256x2_lr5e-3_seed0.json
+Results written to ~/Documents/Developpement/Projets Perso/snn_core/tools/bptn_torch/results/step2_mitbih_rr/bp256x2_lr5e-3_seed0.json
