@@ -1,0 +1,11 @@
+shd_encoded_c64_t64_1.00s: 7341 train / 815 val / 2264 test, 4096 input bits, 20 classes; 64 trees of depth 4, k 6, lr 0.1, lambda 10.0
+  tree    8/64  train  46.4%  val  40.4%  (12s)
+  tree   16/64  train  57.6%  val  49.1%  (23s)
+  tree   24/64  train  65.5%  val  57.2%  (34s)
+  tree   32/64  train  71.5%  val  61.7%  (46s)
+  tree   40/64  train  76.4%  val  64.8%  (58s)
+  tree   48/64  train  79.8%  val  66.3%  (69s)
+  tree   56/64  train  82.8%  val  68.0%  (78s)
+  tree   64/64  train  85.0%  val  70.4%  (87s)
+test float 68.68%, int8 reference 68.77% (agreement with float 99.47%), val 70.43% (best 70.55% at 63 trees)
+estimated 35,046 cycles (256 nodes read), Flash 38.8 KB (estimates from SHD-measured per-node costs)

@@ -44,6 +44,7 @@ sur 3**.
 | 7 | **Forêt hybride** | comptages par canal avant la forêt | Rattrape le CNN sur le CAN, mais le gradient boosting fait autant avec 2× moins de cycles ; n'aide pas sur Speech Commands. |
 | 8 | **Entrées multi-échelles** | banque de comptages sur plusieurs groupes de canaux et fenêtres ; les connexions apprises choisissent | +1,8 point pour la forêt sur Speech Commands, rien sur AutoHack ; le gradient boosting y gagne davantage (80,0 % sur AutoHack). |
 | 9 | **Automate LUT** | l'état est un numéro de nœud ; à chaque trame, une LUT de 6 bits appris choisit l'état suivant, les scores des états visités s'additionnent | AutoHack : 79,3 % ± 2,9 (3 graines) depuis l'entrée brute, au niveau du gradient boosting et du CNN, ~2,2 k cycles par trame (estimés) ; échec sur Speech Commands (45,7 %). |
+| 10 | **Distillation et boosting de LUT** | imiter le CNN large avec des décalages en temps ; construire les arbres un par un sans gradient | +3,7 points sur Speech Commands (59,8 %), toujours sous le petit CNN ; le boosting fait jeu égal avec la forêt par gradient sur SHD et gagne un peu sur AutoHack, sans dépasser le gradient boosting classique. |
 
 ## 4. Résultats
 
@@ -56,6 +57,7 @@ sur 3**.
 | Réseau binarisé, 100 neurones | 71,69 % | 71,72 % ± 0,27 | 216 758 | 55,1 Ko |
 | Réseau binarisé, 64 neurones | 69,26 % | 69,73 % ± 0,57 | 142 163 | 35,9 Ko |
 | Réseau LUT group-sum, 2 000 LUT | 71,95 % | 71,41 % ± 1,22 | 223 791 | 40,4 Ko |
+| Boosting de LUT 256 × 2 (sans gradient) | non mesuré | 75,66 % (graine 0) | ~83 k (estimés) | 35,0 Ko |
 | Gradient boosting 50 × 4 | 72,04 % | 73,14 % (taux 0,2) | 146 371 | 121,1 Ko |
 | CNN int8 large (CMSIS-NN) | non mesuré | 74,37 % ± 0,62 | ≥ 562 000 (1,12 M MAC / 2) | 46,8 Ko |
 | CNN int8 tiny | non mesuré | 66,62 % ± 1,18 | ≥ 17 700 (35 k MAC / 2) | 5,0 Ko |
@@ -75,6 +77,8 @@ cycle. À environ 74 %, le CNN demande donc au moins 18× les cycles de la forê
 | Forêt LUT 64 × 4, banque multi-échelles | non lancé | 76,85 % | plus l'image intégrale (non mesurée) |
 | Forêt LUT 256 × 2, banque multi-échelles | 57,95 % | 76,48 % | idem |
 | Automate LUT 16 × 16, entrée brute | 45,74 % | 79,31 % ± 2,87 (3 graines) | ~2,2 k cycles par trame (4,6 k avec 35 classes), estimés |
+| Forêt LUT 256 × 2, distillée du CNN large + décalages | 59,80 % | non lancé | même modèle déployé (~79 k cycles) |
+| Boosting de LUT 64 × 4 / 256 × 2 (sans gradient) | non lancé | 73,44 % / 75,00 % | ~30 k / ~64 k cycles (estimés) |
 | **CNN int8 tiny** | **61,32 %** | 77,75 % | ≥ 17,8 k cycles, ~5 Ko |
 | CNN int8 small | 71,80 % | 77,47 % | ≥ 67 k cycles |
 | CNN int8 large | 79,56 % | 77,30 % | ≥ 562 k cycles |
@@ -105,6 +109,9 @@ sous le gradient boosting sur AutoHack.
    L'automate LUT, qui compte et suit l'ordre des trames par son état, égale ces méthodes sur le CAN
    depuis l'entrée brute (79,3 % ± 2,9 sur 3 graines) sans les dépasser, et échoue sur la parole.
    Une seule graine peut tromper : la première donnait 82,6 %.
+   Changer la méthode d'apprentissage de la forêt ne lève pas ce plafond : le boosting de nœuds LUT
+   fait jeu égal avec la descente de gradient, et la distillation du CNN ajoute 3,7 points sur
+   Speech Commands sans rattraper le petit CNN.
 4. **Le CNN int8 reste une référence très forte** : très compact en Flash (5 Ko pour le plus petit),
    et c'est lui qui gagne sur Speech Commands.
 5. **Mesurer sur silicium change les conclusions.** Plusieurs avantages annoncés en route ont été
@@ -248,4 +255,4 @@ python3 tools/run_lut_shd_on_board.py --kind bp --chunk 256 \
 
 Les autres modèles et tâches utilisent les mêmes scripts : `--models bnn|lut|lif|rlif`,
 `tree_baselines.py`, `cnn_int8_baseline.py`, `encode_speech_commands.py`, `encode_autohack.py`,
-`make_hybrid_features.py`, `make_multiscale_features.py`, `train_lut_automaton.py` (voir [`tools/bptn_torch/README.md`](../tools/bptn_torch/README.md)).
+`make_hybrid_features.py`, `make_multiscale_features.py`, `train_lut_automaton.py`, `train_lut_boosting.py` (voir [`tools/bptn_torch/README.md`](../tools/bptn_torch/README.md)).

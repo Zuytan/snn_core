@@ -103,3 +103,9 @@ one frame per tick, a k-bit LUT of the frame chooses the next state, and the int
 visited states are summed. It checks an integer reference against PyTorch, reports the accuracy
 after each number of frames read and estimates the cycles per frame (not measured).
 
+`train_lut_boosting.py` grows the same forest of LUT trees by gradient boosting instead of
+gradient descent (greedy choice of the 6 bits and of the table of every node) and exports it in
+the forest format (`--export DIR`, for `bp_shd_eval`). `train_shd_comparison.py --teacher FILE`
+distills a teacher (logits from `cnn_int8_baseline.py --save-teacher FILE`) and `--time-shift N`
+shifts the training samples by up to N ticks; neither changes the deployed model.
+

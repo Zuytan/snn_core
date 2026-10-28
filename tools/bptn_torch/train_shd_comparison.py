@@ -578,7 +578,26 @@ def evaluate(model, x, y, device, batch=512):
     return correct / len(x), hidden_activity / len(x)
 
 
-def train(model, x_tr, y_tr, x_val, y_val, args, device):
+def time_shift(xb, max_shift, rng):
+    """Shifts each sample of xb [B, C, T] by a random number of ticks in [-max_shift, max_shift],
+    filling with zeros (training-time augmentation; the deployed model is unchanged)."""
+    t = xb.shape[-1]
+    shifts = torch.as_tensor(rng.integers(-max_shift, max_shift + 1, len(xb)), device=xb.device)
+    src = torch.arange(t, device=xb.device)[None, :] - shifts[:, None]  # [B, T]
+    valid = ((src >= 0) & (src < t)).to(xb.dtype)
+    out = torch.gather(xb, 2, src.clamp(0, t - 1)[:, None, :].expand(-1, xb.shape[1], -1))
+    return out * valid[:, None, :]
+
+
+def distillation_loss(logits, yb, teacher_logits, alpha, temperature):
+    """(1 - alpha) * cross-entropy + alpha * T^2 * KL(teacher || student) at temperature T (Hinton et al.)."""
+    hard = F.cross_entropy(logits, yb)
+    soft = F.kl_div(F.log_softmax(logits / temperature, dim=1), F.softmax(teacher_logits / temperature, dim=1),
+                    reduction="batchmean") * temperature**2
+    return (1 - alpha) * hard + alpha * soft
+
+
+def train(model, x_tr, y_tr, x_val, y_val, args, device, teacher=None):
     if isinstance(model, LifNet):
         lr = args.lr_lif
     elif isinstance(model, (LutNet, BranchingNet)):
@@ -598,8 +617,14 @@ def train(model, x_tr, y_tr, x_val, y_val, args, device):
             idx = order[i : i + args.batch]
             xb = torch.as_tensor(x_tr[idx], dtype=torch.float32, device=device)
             yb = torch.as_tensor(y_tr[idx], device=device)
+            if args.time_shift:
+                xb = time_shift(xb, args.time_shift, rng)
             logits, _ = model(xb)
-            loss = F.cross_entropy(logits, yb)
+            if teacher is not None:
+                tb = torch.as_tensor(teacher[idx], device=device)
+                loss = distillation_loss(logits, yb, tb, args.distill_alpha, args.distill_temp)
+            else:
+                loss = F.cross_entropy(logits, yb)
             opt.zero_grad()
             loss.backward()
             opt.step()
@@ -854,6 +879,11 @@ def main():
     ap.add_argument("--bp-trees", type=int, default=64)
     ap.add_argument("--bp-depth", type=int, default=6)
     ap.add_argument("--export-bp", type=Path, default=None, help="directory for the firmware export of the branching model")
+    ap.add_argument("--teacher", type=Path, default=None,
+                    help="teacher logits on the whole training set (.npy from cnn_int8_baseline.py --save-teacher)")
+    ap.add_argument("--distill-alpha", type=float, default=0.7, help="weight of the distillation term")
+    ap.add_argument("--distill-temp", type=float, default=4.0, help="distillation temperature")
+    ap.add_argument("--time-shift", type=int, default=0, help="random shift of training samples by up to N ticks")
     args = ap.parse_args()
 
     torch.manual_seed(args.seed)
@@ -882,6 +912,14 @@ def main():
     n_val = len(x_train) // 10
     x_val, y_val = x_train[perm[:n_val]], y_train[perm[:n_val]]
     x_tr, y_tr = x_train[perm[n_val:]], y_train[perm[n_val:]]
+    teacher = None
+    if args.teacher:
+        teacher_all = np.load(args.teacher.expanduser())
+        assert len(teacher_all) == len(x_train), "teacher logits must cover the training set in file order"
+        teacher = teacher_all[perm[n_val:]]
+        t_acc = (teacher.argmax(1) == y_tr).mean() * 100
+        print(f"distillation from {args.teacher.name} (train accuracy {t_acc:.1f}%), "
+              f"alpha {args.distill_alpha}, T {args.distill_temp}")
     input_spikes = float(x_test.reshape(len(x_test), -1).sum(1).mean())
     print(
         f"{dataset}: {len(x_tr)} train / {len(x_val)} val / {len(x_test)} test, "
@@ -920,7 +958,7 @@ def main():
             learned = f" trees={args.bp_trees} depth={args.bp_depth}"
         label = f"sizes={args.lut_sizes} k={args.lut_k} {args.lut_mapping}{learned}" if name == "lut" else f"hidden={h}"
         print(f"\n[{name.upper()}] {label}")
-        val_acc = train(model, x_tr, y_tr, x_val, y_val, args, device)
+        val_acc = train(model, x_tr, y_tr, x_val, y_val, args, device, teacher)
 
         set_deployed(model, False)
         acc_train_fmt, _ = evaluate(model, x_test, y_test, device)

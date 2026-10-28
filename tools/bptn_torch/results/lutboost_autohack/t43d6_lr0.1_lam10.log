@@ -1,0 +1,9 @@
+autohack_w64: 68267 train / 7585 val / 33562 test, 4096 input bits, 5 classes; 43 trees of depth 6, k 6, lr 0.1, lambda 10.0
+  tree    8/43  train  70.6%  val  69.0%  (20s)
+  tree   16/43  train  75.1%  val  73.8%  (41s)
+  tree   24/43  train  77.6%  val  75.6%  (63s)
+  tree   32/43  train  79.9%  val  76.5%  (88s)
+  tree   40/43  train  82.1%  val  77.3%  (112s)
+  tree   43/43  train  83.0%  val  77.4%  (121s)
+test float 73.09%, int8 reference 73.09% (agreement with float 99.90%), val 77.39% (best 77.39% at 43 trees)
+estimated 29,945 cycles (258 nodes read), Flash 66.3 KB (estimates from SHD-measured per-node costs)

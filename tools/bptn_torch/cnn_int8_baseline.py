@@ -263,6 +263,9 @@ def main():
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--export-dir", type=Path, default=None, help="writes <dir>/cnn_export_<name> per config")
     ap.add_argument("--out", type=Path, default=None)
+    ap.add_argument("--save-teacher", type=Path, default=None,
+                    help="writes the float logits of the last config on the whole training set (file order) to this .npy, "
+                         "for distillation with train_shd_comparison.py --teacher")
     args = ap.parse_args()
 
     device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
@@ -298,6 +301,15 @@ def main():
         if args.export_dir:
             export(name, cfg, q, x_te, y_te, int_pred, args.export_dir.expanduser() / f"cnn_export_{name}",
                    {"seed": args.seed, "epochs": args.epochs, "test_int": res["test_int"], "test_float": res["test_float"], "macs": n_macs})
+    if args.save_teacher:
+        x_all = np.load(args.data.expanduser())["x_train"]
+        with torch.no_grad():
+            logits = np.concatenate([
+                model(torch.as_tensor(x_all[i : i + 2048], dtype=torch.float32, device=device)).cpu().numpy()
+                for i in range(0, len(x_all), 2048)])
+        args.save_teacher.parent.mkdir(parents=True, exist_ok=True)
+        np.save(args.save_teacher, logits.astype(np.float32))
+        print(f"Teacher logits ({name}, float) written to {args.save_teacher}")
     if args.out:
         args.out.write_text(json.dumps({"seed": args.seed, "results": results}, indent=2))
         print(f"Written to {args.out}")
