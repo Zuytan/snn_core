@@ -1,0 +1,2 @@
+tiny    (8, 8, 8, 16, 3, 1): test float 66.76%, int8 66.62% (val int8 92.3%), 35,136 MACs, weights 4.7 KB
+Written to /Users/zuytan/Documents/Developpement/Projets Perso/snn_core/tools/bptn_torch/results/step2_mitbih/cnn_tiny_seed0.json

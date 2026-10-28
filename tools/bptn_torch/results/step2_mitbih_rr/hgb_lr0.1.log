@@ -1,0 +1,10 @@
+rf  (64, 8)      trees    64  val  96.3  test 76.09  nodes read   490.1 (max   512)  Flash    84.7 KB  (1s)
+rf  (128, 8)     trees   128  val  96.3  test 76.61  nodes read   982.8 (max  1024)  Flash   169.6 KB  (1s)
+rf  (256, 8)     trees   256  val  96.3  test 76.50  nodes read  1968.0 (max  2048)  Flash   338.3 KB  (3s)
+rf  (64, 12)     trees    64  val  96.4  test 75.97  nodes read   610.6 (max   759)  Flash   181.3 KB  (1s)
+rf  (128, 12)    trees   128  val  96.8  test 76.56  nodes read  1228.6 (max  1518)  Flash   363.2 KB  (2s)
+rf  (256, 12)    trees   256  val  96.9  test 76.53  nodes read  2472.5 (max  3017)  Flash   732.4 KB  (4s)
+rf  (128, 16)    trees   128  val  97.1  test 76.81  nodes read  1308.1 (max  1786)  Flash   425.9 KB  (2s)
+rf  (256, 16)    trees   256  val  97.0  test 76.62  nodes read  2623.7 (max  3545)  Flash   853.4 KB  (4s)
+hgb (50, 4)      trees   200  val  97.6  test 75.71  nodes read   798.4 (max   800)  Flash    22.6 KB  (25s)
+Written to /Users/zuytan/Documents/Developpement/Projets Perso/snn_core/tools/bptn_torch/results/step2_mitbih_rr/hgb_lr0.1.json

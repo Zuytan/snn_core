@@ -276,16 +276,17 @@ def main():
     for name in args.configs.split(","):
         cfg = CONFIGS[name]
         torch.manual_seed(args.seed)
-        model = Cnn(*cfg).to(device)
+        channels = x_tr.shape[1]
+        model = Cnn(*cfg, channels=channels).to(device)
         val = train(model, data, args.epochs, args.lr, args.seed, device)
         with torch.no_grad():
             float_pred = model(torch.as_tensor(x_te, dtype=torch.float32, device=device)).argmax(1).cpu().numpy()
         q = quantize_model(model, calib, device)
         int_pred = int_forward(q, x_te).argmax(1)
         int_val = int_forward(q, x_val).argmax(1)
-        n_macs, w1, w2 = macs(cfg)
+        n_macs, w1, w2 = macs(cfg, channels=channels)
         c1, k1, s1, c2, k2, s2 = cfg
-        flash = (c1 * k1 * 64 + c2 * k2 * c1 + c2 * N_CLASSES) + 12 * (c1 + c2) + 4 * N_CLASSES
+        flash = (c1 * k1 * channels + c2 * k2 * c1 + c2 * N_CLASSES) + 12 * (c1 + c2) + 4 * N_CLASSES
         res = {
             "name": name, "config": cfg, "val_float": val, "val_int": float((int_val == y_val).mean()),
             "test_float": float((float_pred == y_te).mean()), "test_int": float((int_pred == y_te).mean()),

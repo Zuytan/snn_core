@@ -1,0 +1,140 @@
+{
+  "seed": 0,
+  "results": [
+    {
+      "kind": "rf",
+      "config": [
+        64,
+        8
+      ],
+      "trees": 64,
+      "hgb_lr": null,
+      "val_acc": 0.9585666293393057,
+      "test_acc": 0.7773802654356607,
+      "nodes_visited_mean": 496.34102712060013,
+      "nodes_visited_max": 512,
+      "flash_bytes": 85404,
+      "train_s": 0.8153762817382812
+    },
+    {
+      "kind": "rf",
+      "config": [
+        128,
+        8
+      ],
+      "trees": 128,
+      "hgb_lr": null,
+      "val_acc": 0.9585666293393057,
+      "test_acc": 0.7944604731679169,
+      "nodes_visited_mean": 991.4406231967686,
+      "nodes_visited_max": 1024,
+      "flash_bytes": 169462,
+      "train_s": 1.2425041198730469
+    },
+    {
+      "kind": "rf",
+      "config": [
+        256,
+        8
+      ],
+      "trees": 256,
+      "hgb_lr": null,
+      "val_acc": 0.9574468085106383,
+      "test_acc": 0.7823427582227351,
+      "nodes_visited_mean": 1982.669705712637,
+      "nodes_visited_max": 2048,
+      "flash_bytes": 339698,
+      "train_s": 2.368757963180542
+    },
+    {
+      "kind": "rf",
+      "config": [
+        64,
+        12
+      ],
+      "trees": 64,
+      "hgb_lr": null,
+      "val_acc": 0.9652855543113102,
+      "test_acc": 0.8109636468551644,
+      "nodes_visited_mean": 631.4792844777842,
+      "nodes_visited_max": 760,
+      "flash_bytes": 190094,
+      "train_s": 0.909005880355835
+    },
+    {
+      "kind": "rf",
+      "config": [
+        128,
+        12
+      ],
+      "trees": 128,
+      "hgb_lr": null,
+      "val_acc": 0.9652855543113102,
+      "test_acc": 0.8046162723600693,
+      "nodes_visited_mean": 1256.4158107328333,
+      "nodes_visited_max": 1502,
+      "flash_bytes": 380692,
+      "train_s": 1.8948540687561035
+    },
+    {
+      "kind": "rf",
+      "config": [
+        256,
+        12
+      ],
+      "trees": 256,
+      "hgb_lr": null,
+      "val_acc": 0.9664053751399776,
+      "test_acc": 0.7834968263127524,
+      "nodes_visited_mean": 2505.4392383150607,
+      "nodes_visited_max": 3013,
+      "flash_bytes": 759408,
+      "train_s": 3.638843059539795
+    },
+    {
+      "kind": "rf",
+      "config": [
+        128,
+        16
+      ],
+      "trees": 128,
+      "hgb_lr": null,
+      "val_acc": 0.9686450167973124,
+      "test_acc": 0.8078476630121177,
+      "nodes_visited_mean": 1320.7142527409117,
+      "nodes_visited_max": 1766,
+      "flash_bytes": 448352,
+      "train_s": 2.1733851432800293
+    },
+    {
+      "kind": "rf",
+      "config": [
+        256,
+        16
+      ],
+      "trees": 256,
+      "hgb_lr": null,
+      "val_acc": 0.9664053751399776,
+      "test_acc": 0.784535487593768,
+      "nodes_visited_mean": 2642.0983266012695,
+      "nodes_visited_max": 3513,
+      "flash_bytes": 896388,
+      "train_s": 4.151263952255249
+    },
+    {
+      "kind": "hgb",
+      "config": [
+        50,
+        4
+      ],
+      "trees": 200,
+      "hgb_lr": 0.1,
+      "val_acc": 0.9776035834266518,
+      "test_acc": 0.7538372763993075,
+      "nodes_visited_mean": 798.1697634160415,
+      "nodes_visited_max": 800,
+      "flash_bytes": 22848,
+      "train_s": 23.38651704788208
+    }
+  ]
+}
