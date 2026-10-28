@@ -1,0 +1,3 @@
+large   (64, 8, 2, 64, 3, 2): test float 79.09%, int8 78.92% (val int8 80.9%), 1,124,544 MACs, weights 47.8 KB
+Teacher logits (large, float) written to /Users/zuytan/.cache/snn_core/gsc/teacher_cnn_large_seed1.npy
+Written to results/seeds/gsc/teacher_seed1.json

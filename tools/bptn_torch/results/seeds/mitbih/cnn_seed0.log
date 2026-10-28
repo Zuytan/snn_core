@@ -1,0 +1,2 @@
+tiny    (8, 8, 8, 16, 3, 1): test float 74.92%, int8 74.80% (val int8 96.8%), 51,520 MACs, weights 6.7 KB
+Written to results/seeds/mitbih/cnn_seed0.json

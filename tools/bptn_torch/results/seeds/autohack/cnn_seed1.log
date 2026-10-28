@@ -1,0 +1,3 @@
+tiny    (8, 8, 8, 16, 3, 1): test float 77.29%, int8 76.95% (val int8 90.1%), 35,152 MACs, weights 4.8 KB
+small   (16, 8, 4, 32, 3, 2): test float 76.53%, int8 76.76% (val int8 92.1%), 133,792 MACs, weights 10.2 KB
+Written to results/seeds/autohack/cnn_seed1.json

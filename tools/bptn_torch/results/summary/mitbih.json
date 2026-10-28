@@ -1,0 +1,227 @@
+{
+  "dir": "tools/bptn_torch/results/seeds/mitbih",
+  "ref": "cnn:tiny",
+  "models": [
+    {
+      "model": "bp64x4",
+      "n": 5,
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "values": [
+        79.04212348528563,
+        77.61107905366417,
+        80.86555106751298,
+        74.25274091171379,
+        77.59953837276399
+      ],
+      "mean": 77.87420657818811,
+      "std": 2.4275432048876,
+      "cycles": 35046.4,
+      "cycles_status": "estimated",
+      "flash_bytes": 23296,
+      "vs_ref": {
+        "seeds": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "mean_diff": 0.12233121754183288,
+        "std_diff": 4.070381956586003,
+        "verdict": "tie"
+      }
+    },
+    {
+      "model": "cnn:tiny",
+      "n": 5,
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "values": [
+        74.79515291402193,
+        76.60703981534911,
+        77.71494518176573,
+        80.02308136180034,
+        79.61915753029429
+      ],
+      "mean": 77.75187536064628,
+      "std": 2.1621366336926937,
+      "cycles": 25760.0,
+      "cycles_status": "lower bound",
+      "flash_bytes": 6896
+    },
+    {
+      "model": "hgb:hgb50x4",
+      "n": 5,
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "values": [
+        75.38372763993075,
+        74.32198499711482,
+        74.57587997691863,
+        74.96826312752452,
+        75.1067512983266
+      ],
+      "mean": 74.87132140796307,
+      "std": 0.42321425079049935,
+      "cycles": null,
+      "cycles_status": "798 nodes",
+      "flash_bytes": 23024,
+      "vs_ref": {
+        "seeds": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "mean_diff": -2.8805539526832122,
+        "std_diff": 2.2274799720126466,
+        "verdict": "tie"
+      }
+    },
+    {
+      "model": "hgb:rf128x12",
+      "n": 1,
+      "seeds": [
+        0
+      ],
+      "values": [
+        80.46162723600693
+      ],
+      "mean": 80.46162723600693,
+      "std": null,
+      "cycles": null,
+      "cycles_status": "1256 nodes",
+      "flash_bytes": 380692,
+      "vs_ref": null
+    },
+    {
+      "model": "hgb:rf128x16",
+      "n": 1,
+      "seeds": [
+        0
+      ],
+      "values": [
+        80.78476630121177
+      ],
+      "mean": 80.78476630121177,
+      "std": null,
+      "cycles": null,
+      "cycles_status": "1321 nodes",
+      "flash_bytes": 448352,
+      "vs_ref": null
+    },
+    {
+      "model": "hgb:rf128x8",
+      "n": 1,
+      "seeds": [
+        0
+      ],
+      "values": [
+        79.44604731679169
+      ],
+      "mean": 79.44604731679169,
+      "std": null,
+      "cycles": null,
+      "cycles_status": "991 nodes",
+      "flash_bytes": 169462,
+      "vs_ref": null
+    },
+    {
+      "model": "hgb:rf256x12",
+      "n": 1,
+      "seeds": [
+        0
+      ],
+      "values": [
+        78.34968263127524
+      ],
+      "mean": 78.34968263127524,
+      "std": null,
+      "cycles": null,
+      "cycles_status": "2505 nodes",
+      "flash_bytes": 759408,
+      "vs_ref": null
+    },
+    {
+      "model": "hgb:rf256x16",
+      "n": 1,
+      "seeds": [
+        0
+      ],
+      "values": [
+        78.4535487593768
+      ],
+      "mean": 78.4535487593768,
+      "std": null,
+      "cycles": null,
+      "cycles_status": "2642 nodes",
+      "flash_bytes": 896388,
+      "vs_ref": null
+    },
+    {
+      "model": "hgb:rf256x8",
+      "n": 1,
+      "seeds": [
+        0
+      ],
+      "values": [
+        78.23427582227352
+      ],
+      "mean": 78.23427582227352,
+      "std": null,
+      "cycles": null,
+      "cycles_status": "1983 nodes",
+      "flash_bytes": 339698,
+      "vs_ref": null
+    },
+    {
+      "model": "hgb:rf64x12",
+      "n": 1,
+      "seeds": [
+        0
+      ],
+      "values": [
+        81.09636468551645
+      ],
+      "mean": 81.09636468551645,
+      "std": null,
+      "cycles": null,
+      "cycles_status": "631 nodes",
+      "flash_bytes": 190094,
+      "vs_ref": null
+    },
+    {
+      "model": "hgb:rf64x8",
+      "n": 1,
+      "seeds": [
+        0
+      ],
+      "values": [
+        77.73802654356608
+      ],
+      "mean": 77.73802654356608,
+      "std": null,
+      "cycles": null,
+      "cycles_status": "496 nodes",
+      "flash_bytes": 85404,
+      "vs_ref": null
+    }
+  ]
+}

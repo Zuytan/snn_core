@@ -1,0 +1,20 @@
+{
+  "dataset": "autohack_w64",
+  "automata": 16,
+  "states": 16,
+  "k": 6,
+  "epochs": 20,
+  "seed": 0,
+  "stay_bias": 0.0,
+  "val_acc": 0.9020435069215557,
+  "test_acc": 0.8261426613431857,
+  "integer_test_acc": 0.8261426613431857,
+  "integer_agreement": 1.0,
+  "mean_target_states": 16,
+  "est_cycles_per_frame": 2190.4,
+  "est_cycles_per_window": 140185.6,
+  "est_us_per_frame": 45.63333333333333,
+  "est_uj_per_frame": 0.632478,
+  "flash_bytes": 11008.0,
+  "sram_bytes": 36
+}

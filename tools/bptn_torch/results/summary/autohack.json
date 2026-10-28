@@ -1,0 +1,276 @@
+{
+  "dir": "tools/bptn_torch/results/seeds/autohack",
+  "ref": "cnn:tiny",
+  "models": [
+    {
+      "model": "automaton",
+      "n": 3,
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "values": [
+        82.61426613431857,
+        77.80227638400572,
+        77.50432036231453
+      ],
+      "mean": 79.30695429354627,
+      "std": 2.868087892098145,
+      "cycles": 140185.6,
+      "cycles_status": "estimated",
+      "flash_bytes": 11008.0,
+      "vs_ref": {
+        "seeds": [
+          0,
+          1,
+          2
+        ],
+        "mean_diff": 1.9098980990405845,
+        "std_diff": 2.5888863605428134,
+        "verdict": "tie"
+      }
+    },
+    {
+      "model": "boost256x2",
+      "n": 3,
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "values": [
+        74.99553065967464,
+        75.186222513557,
+        75.02830582206066
+      ],
+      "mean": 75.07001966509743,
+      "std": 0.10196018492502328,
+      "cycles": 63692.8,
+      "cycles_status": "estimated",
+      "flash_bytes": 20480,
+      "vs_ref": {
+        "seeds": [
+          0,
+          1,
+          2
+        ],
+        "mean_diff": -2.327036529408256,
+        "std_diff": 0.5124063977688998,
+        "verdict": "worse"
+      }
+    },
+    {
+      "model": "bp256x2",
+      "n": 3,
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "values": [
+        74.40557773672606,
+        73.47297538883261,
+        74.17615160002383
+      ],
+      "mean": 74.0182349085275,
+      "std": 0.48594243065815346,
+      "cycles": 82892.8,
+      "cycles_status": "estimated",
+      "flash_bytes": 20480,
+      "vs_ref": {
+        "seeds": [
+          0,
+          1,
+          2
+        ],
+        "mean_diff": -3.3788212859781908,
+        "std_diff": 0.08448511339465516,
+        "verdict": "worse"
+      }
+    },
+    {
+      "model": "cnn:large",
+      "n": 1,
+      "seeds": [
+        0
+      ],
+      "values": [
+        76.72367558548359
+      ],
+      "mean": 76.72367558548359,
+      "std": null,
+      "cycles": 561312.0,
+      "cycles_status": "lower bound",
+      "flash_bytes": 46932,
+      "vs_ref": null
+    },
+    {
+      "model": "cnn:small",
+      "n": 3,
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "values": [
+        77.46856563971158,
+        76.76240986830344,
+        76.66408438114534
+      ],
+      "mean": 76.96501996305345,
+      "std": 0.43884582909837433,
+      "cycles": 66896.0,
+      "cycles_status": "lower bound",
+      "flash_bytes": 10484,
+      "vs_ref": {
+        "seeds": [
+          0,
+          1,
+          2
+        ],
+        "mean_diff": -0.43203623145223463,
+        "std_diff": 0.34435518763978756,
+        "verdict": "tie"
+      }
+    },
+    {
+      "model": "cnn:tiny",
+      "n": 3,
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "values": [
+        77.75460342053513,
+        76.94714260175198,
+        77.48942256122996
+      ],
+      "mean": 77.3970561945057,
+      "std": 0.41157854990739323,
+      "cycles": 17576.0,
+      "cycles_status": "lower bound",
+      "flash_bytes": 4868
+    },
+    {
+      "model": "hgb02:hgb25x4",
+      "n": 1,
+      "seeds": [
+        0
+      ],
+      "values": [
+        74.22978368392825
+      ],
+      "mean": 74.22978368392825,
+      "std": null,
+      "cycles": null,
+      "cycles_status": "500 nodes",
+      "flash_bytes": 15645,
+      "vs_ref": null
+    },
+    {
+      "model": "hgb02:hgb50x4",
+      "n": 3,
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "values": [
+        76.41082176270783,
+        76.20821166795781,
+        76.27376199272987
+      ],
+      "mean": 76.29759847446518,
+      "std": 0.10338687547164906,
+      "cycles": null,
+      "cycles_status": "1000 nodes",
+      "flash_bytes": 31270,
+      "vs_ref": {
+        "seeds": [
+          0,
+          1,
+          2
+        ],
+        "mean_diff": -1.099457720040519,
+        "std_diff": 0.3187293931902758,
+        "verdict": "worse"
+      }
+    },
+    {
+      "model": "hgb:hgb25x4",
+      "n": 1,
+      "seeds": [
+        0
+      ],
+      "values": [
+        70.36231452237651
+      ],
+      "mean": 70.36231452237651,
+      "std": null,
+      "cycles": null,
+      "cycles_status": "500 nodes",
+      "flash_bytes": 15645,
+      "vs_ref": null
+    },
+    {
+      "model": "hgb:hgb50x4",
+      "n": 3,
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "values": [
+        74.16125379893927,
+        74.02419402896132,
+        74.28341576783268
+      ],
+      "mean": 74.15628786524442,
+      "std": 0.12968219942987239,
+      "cycles": null,
+      "cycles_status": "1000 nodes",
+      "flash_bytes": 31270,
+      "vs_ref": {
+        "seeds": [
+          0,
+          1,
+          2
+        ],
+        "mean_diff": -3.240768329261267,
+        "std_diff": 0.3365496469192869,
+        "verdict": "worse"
+      }
+    },
+    {
+      "model": "hgb_ms:hgb50x4",
+      "n": 3,
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "values": [
+        80.02800786603898,
+        79.84327513259043,
+        79.97437578213456
+      ],
+      "mean": 79.94855292692132,
+      "std": 0.09503504927322991,
+      "cycles": null,
+      "cycles_status": "1000 nodes",
+      "flash_bytes": 31206,
+      "vs_ref": {
+        "seeds": [
+          0,
+          1,
+          2
+        ],
+        "mean_diff": 2.5514967324156337,
+        "std_diff": 0.31665216920035927,
+        "verdict": "better"
+      }
+    }
+  ]
+}

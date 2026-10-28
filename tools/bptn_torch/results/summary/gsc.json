@@ -1,0 +1,128 @@
+{
+  "dir": "tools/bptn_torch/results/seeds/gsc",
+  "ref": "cnn:tiny",
+  "models": [
+    {
+      "model": "bp256x2_both",
+      "n": 3,
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "values": [
+        59.80009086778737,
+        58.255338482507945,
+        59.10040890504317
+      ],
+      "mean": 59.051946085112824,
+      "std": 0.7735156537803987,
+      "cycles": 82892.8,
+      "cycles_status": "estimated",
+      "flash_bytes": 51200,
+      "vs_ref": {
+        "seeds": [
+          0,
+          1,
+          2
+        ],
+        "mean_diff": -2.6351658337119517,
+        "std_diff": 0.9932061154335627,
+        "verdict": "worse"
+      }
+    },
+    {
+      "model": "cnn:large",
+      "n": 1,
+      "seeds": [
+        0
+      ],
+      "values": [
+        79.56383462062698
+      ],
+      "mean": 79.56383462062698,
+      "std": null,
+      "cycles": 562272.0,
+      "cycles_status": "lower bound",
+      "flash_bytes": 48972,
+      "vs_ref": null
+    },
+    {
+      "model": "cnn:small",
+      "n": 3,
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "values": [
+        71.80372557928214,
+        72.23989095865517,
+        71.75829168559746
+      ],
+      "mean": 71.93396940784493,
+      "std": 0.2659079842942792,
+      "cycles": 67376.0,
+      "cycles_status": "lower bound",
+      "flash_bytes": 11564,
+      "vs_ref": {
+        "seeds": [
+          0,
+          1,
+          2
+        ],
+        "mean_diff": 10.246857489020144,
+        "std_diff": 0.4869982181739456,
+        "verdict": "better"
+      }
+    },
+    {
+      "model": "cnn:tiny",
+      "n": 3,
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "values": [
+        61.317582916855976,
+        61.67196728759655,
+        62.07178555202181
+      ],
+      "mean": 61.687111918824776,
+      "std": 0.37732933044497163,
+      "cycles": 17816.0,
+      "cycles_status": "lower bound",
+      "flash_bytes": 5468
+    },
+    {
+      "model": "teacher:large",
+      "n": 3,
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "values": [
+        79.56383462062698,
+        78.91867333030442,
+        79.6637891867333
+      ],
+      "mean": 79.38209904588822,
+      "std": 0.40443822052280576,
+      "cycles": 562272.0,
+      "cycles_status": "lower bound",
+      "flash_bytes": 48972,
+      "vs_ref": {
+        "seeds": [
+          0,
+          1,
+          2
+        ],
+        "mean_diff": 17.694987127063452,
+        "std_diff": 0.5076682794013148,
+        "verdict": "better"
+      }
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "dir": "tools/bptn_torch/results/seeds/shd",
+  "ref": "bp64x4",
+  "models": [
+    {
+      "model": "boost256x2",
+      "n": 3,
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "values": [
+        75.66254416961131,
+        75.70671378091873,
+        76.9434628975265
+      ],
+      "mean": 76.10424028268551,
+      "std": 0.7271235703690054,
+      "cycles": 82892.8,
+      "cycles_status": "estimated",
+      "flash_bytes": 35840,
+      "vs_ref": {
+        "seeds": [
+          0,
+          1,
+          2
+        ],
+        "mean_diff": 1.7962308598351011,
+        "std_diff": 1.657586903592121,
+        "verdict": "tie"
+      }
+    },
+    {
+      "model": "bp64x4",
+      "n": 3,
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "values": [
+        74.82332155477032,
+        74.86749116607774,
+        73.23321554770318
+      ],
+      "mean": 74.30800942285042,
+      "std": 0.9310607628835317,
+      "cycles": 35046.4,
+      "cycles_status": "estimated",
+      "flash_bytes": 39680
+    }
+  ]
+}
